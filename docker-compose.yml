@@ -9,7 +9,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:-OhhhSoYouHackedSecretKey?WellGoAheadAndBreakMyApp!@#$%^&*()_+{}|:<>?[]\;',./1234567890abcdef}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-NEW_OPENAI_API_KEY_HERE_REPLACE_THIS}
       - DEVELOPER_PASSWORD=${DEVELOPER_PASSWORD:-admin123}
-      - DATABASE_URL=sqlite:///gossip.db
+      - DATABASE_URL=sqlite:///instance/gossip.db
     volumes:
       - ./instance:/app/instance:rw
       - ./database_backups:/app/database_backups:rw

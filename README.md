@@ -32,7 +32,17 @@
    cd spletni
    ```
 
-2. **Запустите приложение:**
+2. **Исправьте права доступа (если нужно):**
+   ```bash
+   # Windows
+   fix-permissions.bat
+   
+   # Linux/macOS
+   chmod +x fix-permissions.sh
+   ./fix-permissions.sh
+   ```
+
+3. **Запустите приложение:**
    ```bash
    # Windows
    start-docker.bat
@@ -42,9 +52,32 @@
    ./start-docker.sh
    ```
 
-3. **Откройте в браузере:**
+4. **Откройте в браузере:**
    - http://localhost (основное приложение)
    - http://localhost/developer_login (панель разработчика)
+
+### 🔧 Решение проблем
+
+Если возникает ошибка `sqlite3.OperationalError: attempt to write a readonly database`:
+
+1. **Автоматическое исправление:**
+   ```bash
+   # Windows
+   fix-permissions.bat
+   
+   # Linux/macOS
+   ./fix-permissions.sh
+   ```
+
+2. **Ручное исправление:**
+   ```bash
+   docker-compose down
+   sudo chown -R 1000:1000 instance database_backups bug_reports
+   docker-compose build --no-cache
+   docker-compose up -d
+   ```
+
+Подробнее: [🔧 Исправление прав доступа](PERMISSIONS_FIX.md)
 
 ### С HTTPS
 
@@ -61,6 +94,7 @@
 - [🔒 Настройка HTTPS](HTTPS_SETUP.md)
 - [⚡ Быстрый старт](QUICK_START.md)
 - [🐳 Установка Docker](INSTALL_DOCKER.md)
+- [🔧 Исправление прав доступа](PERMISSIONS_FIX.md)
 
 ## 🛠 Технологии
 

@@ -18,11 +18,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем код приложения
 COPY . .
 
-# Создаем необходимые директории
+# Создаем необходимые директории с правильными правами
 RUN mkdir -p database_backups/automatic database_backups/manual bug_reports instance
 
 # Создаем пользователя для безопасности
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Устанавливаем правильные права на директории
+RUN chmod -R 755 /app/instance /app/database_backups /app/bug_reports
+
+# Переключаемся на пользователя приложения
 USER appuser
 
 # Открываем порт

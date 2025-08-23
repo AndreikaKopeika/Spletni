@@ -65,7 +65,7 @@ if not SECRET_KEY:
     raise ValueError("Нет SECRET_KEY в .env файле. Пожалуйста, создайте .env файл и установите в нем SECRET_KEY.")
 
 app.config['SECRET_KEY'] = SECRET_KEY # Теперь берется из .env
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///gossip.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/gossip.db')
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
