@@ -62,8 +62,8 @@ sleep 10
 # Проверяем статус
 if docker-compose ps | grep -q "Up"; then
     echo "✅ Spletni успешно запущена!"
-    echo "🌐 Откройте http://localhost:5000 в браузере"
-    echo "🔧 Панель разработчика: http://localhost:5000/developer_login"
+    echo "🌐 Откройте http://localhost в браузере"
+    echo "🔧 Панель разработчика: http://localhost/developer_login"
     echo ""
     echo "📋 Полезные команды:"
     echo "  docker-compose logs -f    # Просмотр логов"

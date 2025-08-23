@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Создаем необходимые директории
-RUN mkdir -p database_backups/automatic database_backups/manual bug_reports
+RUN mkdir -p database_backups/automatic database_backups/manual bug_reports instance
 
 # Создаем пользователя для безопасности
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

@@ -2,7 +2,7 @@ services:
   spletni-app:
     build: .
     ports:
-      - "5000:5000"
+      - "80:5000"
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=production
@@ -11,9 +11,9 @@ services:
       - DEVELOPER_PASSWORD=${DEVELOPER_PASSWORD:-admin123}
       - DATABASE_URL=sqlite:///gossip.db
     volumes:
-      - ./instance:/app/instance
-      - ./database_backups:/app/database_backups
-      - ./bug_reports:/app/bug_reports
+      - ./instance:/app/instance:rw
+      - ./database_backups:/app/database_backups:rw
+      - ./bug_reports:/app/bug_reports:rw
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/"]

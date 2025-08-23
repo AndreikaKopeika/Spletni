@@ -33,8 +33,8 @@ docker-compose up -d
 **Примечание**: Скрипты автоматически создают `.env` с готовыми значениями из `env.example`.
 
 ## Шаг 3: Откройте приложение
-- **Основное приложение**: http://localhost:5000
-- **Панель разработчика**: http://localhost:5000/developer_login
+- **Основное приложение**: http://localhost
+- **Панель разработчика**: http://localhost/developer_login
 
 ## Полезные команды
 ```bash
