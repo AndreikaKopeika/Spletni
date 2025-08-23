@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Nginx reverse proxy с HTTPS
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/sites-available/spletni
+      - ./ssl:/etc/nginx/ssl
+      - ./static:/var/www/static
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - spletni-app
+    restart: unless-stopped
+    networks:
+      - spletni-network
+
+  # Основное приложение
+  spletni-app:
+    build: .
+    expose:
+      - "5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-OhhhSoYouHackedSecretKey?WellGoAheadAndBreakMyApp!@#$%^&*()_+{}|:<>?[]\;',./1234567890abcdef}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-NEW_OPENAI_API_KEY_HERE_REPLACE_THIS}
+      - DEVELOPER_PASSWORD=${DEVELOPER_PASSWORD:-admin123}
+      - DATABASE_URL=sqlite:///gossip.db
+    volumes:
+      - ./instance:/app/instance:rw
+      - ./database_backups:/app/database_backups:rw
+      - ./bug_reports:/app/bug_reports:rw
+    restart: unless-stopped
+    networks:
+      - spletni-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Certbot для автоматического получения SSL сертификатов
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./ssl:/etc/letsencrypt
+      - ./static:/var/www/static
+    command: certonly --webroot --webroot-path=/var/www/static --email your-email@example.com --agree-tos --no-eff-email -d your-domain.com -d www.your-domain.com
+    depends_on:
+      - nginx
+    networks:
+      - spletni-network
+
+networks:
+  spletni-network:
+    driver: bridge
+
+volumes:
+  nginx_logs:

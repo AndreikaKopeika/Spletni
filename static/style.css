@@ -1734,6 +1734,441 @@ a:focus, button:focus, input:focus, textarea:focus {
     color: var(--accent-secondary);
 }
 
+/* --- АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ --- */
+
+/* Планшеты (768px и меньше) */
+@media (max-width: 768px) {
+    main.main-content {
+        margin: 20px auto;
+        padding: 20px;
+        width: 95%;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: 15px;
+        padding: 10px 0;
+    }
+    
+    .header-left, .header-right {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .nav-links {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .nav-link {
+        padding: 8px 12px;
+        font-size: 0.9em;
+    }
+    
+    .search-form {
+        width: 100%;
+        max-width: 300px;
+        margin: 10px auto;
+    }
+    
+    .gossip-card {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .gossip-card .gossip-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .gossip-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .gossip-stats {
+        gap: 15px;
+    }
+    
+    .gossip-actions {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+    }
+    
+    .comment-card {
+        padding: 15px;
+    }
+    
+    .comment-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .profile-edit-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .quests-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .leaderboard-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .featured-sections {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .decorations-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .coin-center-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .action-buttons-container {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .action-btn {
+        width: 100%;
+        max-width: 300px;
+        height: 120px;
+    }
+    
+    .bot-management-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+}
+
+/* Мобильные телефоны (480px и меньше) */
+@media (max-width: 480px) {
+    main.main-content {
+        margin: 10px auto;
+        padding: 15px;
+        width: 98%;
+    }
+    
+    h1 {
+        font-size: 1.8rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    h3 {
+        font-size: 1.3rem;
+    }
+    
+    .logo {
+        font-size: 1.3em;
+    }
+    
+    .nav-links {
+        gap: 5px;
+    }
+    
+    .nav-link {
+        padding: 6px 8px;
+        font-size: 0.8em;
+    }
+    
+    .nav-link i {
+        font-size: 1.1em;
+    }
+    
+    .search-form {
+        max-width: 250px;
+    }
+    
+    .search-form input[type="search"] {
+        height: 35px;
+        font-size: 0.85rem;
+    }
+    
+    .gossip-card {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .gossip-card .gossip-title {
+        font-size: 1.3em;
+    }
+    
+    .gossip-actions {
+        padding: 12px;
+    }
+    
+    .btn {
+        padding: 8px 15px;
+        font-size: 0.9em;
+    }
+    
+    form input[type="text"],
+    form input[type="password"],
+    form textarea {
+        padding: 12px;
+        font-size: 0.9em;
+    }
+    
+    .comment-card {
+        padding: 12px;
+    }
+    
+    .comment-content {
+        font-size: 1em;
+    }
+    
+    .profile-header {
+        padding: 20px 15px;
+    }
+    
+    .reputation-container {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .reputation-actions {
+        gap: 8px;
+    }
+    
+    .btn-rep {
+        font-size: 1.3em;
+    }
+    
+    .quest-card {
+        padding: 20px;
+    }
+    
+    .quest-card h3 {
+        font-size: 1em;
+    }
+    
+    .progress-bar-container {
+        height: 20px;
+    }
+    
+    .coin-balance-card {
+        padding: 0.8rem 1rem;
+    }
+    
+    .balance-amount span {
+        font-size: 1.5rem;
+    }
+    
+    .action-btn {
+        height: 100px;
+        padding: 1rem;
+        font-size: 1rem;
+    }
+    
+    .action-btn i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .transaction-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .transaction-meta {
+        text-align: left;
+        width: 100%;
+    }
+    
+    .decoration-card {
+        margin-bottom: 15px;
+    }
+    
+    .decoration-preview {
+        height: 150px;
+    }
+    
+    .preview-avatar {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .tabs-navigation {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .tab-link {
+        padding: 0.5rem 1rem;
+        font-size: 0.9em;
+    }
+    
+    .decorations-grid-customize {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .decoration-choice-card .decoration-preview-customize {
+        height: 120px;
+    }
+    
+    .profile-card-preview {
+        padding: 0.8rem;
+    }
+    
+    .preview-username {
+        font-size: 1rem;
+    }
+    
+    .preview-rep {
+        font-size: 0.8rem;
+    }
+}
+
+/* Очень маленькие экраны (320px и меньше) */
+@media (max-width: 320px) {
+    main.main-content {
+        padding: 10px;
+        width: 100%;
+    }
+    
+    .gossip-card {
+        padding: 10px;
+    }
+    
+    .gossip-card .gossip-title {
+        font-size: 1.2em;
+    }
+    
+    .nav-link {
+        padding: 5px 6px;
+        font-size: 0.75em;
+    }
+    
+    .search-form {
+        max-width: 200px;
+    }
+    
+    .btn {
+        padding: 6px 12px;
+        font-size: 0.8em;
+    }
+    
+    .comment-card {
+        padding: 10px;
+    }
+    
+    .quest-card {
+        padding: 15px;
+    }
+    
+    .action-btn {
+        height: 80px;
+        padding: 0.8rem;
+        font-size: 0.9rem;
+    }
+    
+    .action-btn i {
+        font-size: 1.5rem;
+    }
+}
+
+/* Ландшафтная ориентация на мобильных */
+@media (max-width: 768px) and (orientation: landscape) {
+    .header-content {
+        flex-direction: row;
+        gap: 10px;
+    }
+    
+    .nav-links {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 5px;
+    }
+    
+    .nav-link {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+}
+
+/* Улучшения для touch-устройств */
+@media (hover: none) and (pointer: coarse) {
+    .btn:hover,
+    .nav-link:hover,
+    .gossip-card:hover {
+        transform: none;
+    }
+    
+    .btn:active,
+    .nav-link:active {
+        transform: scale(0.95);
+    }
+    
+    .gossip-card:active {
+        transform: translateY(-2px);
+    }
+    
+    /* Увеличиваем размеры для touch */
+    .btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .nav-link {
+        min-height: 44px;
+        min-width: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .search-form input[type="search"] {
+        min-height: 44px;
+    }
+    
+    .btn-like {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* Улучшения доступности для мобильных */
+@media (prefers-reduced-motion: reduce) {
+    .gossip-card:hover,
+    .btn:hover,
+    .nav-link:hover {
+        transform: none;
+    }
+    
+    .btn-like.liked .fa-heart {
+        animation: none;
+    }
+    
+    .quest-card.quest-completed {
+        animation: none;
+    }
+    
+    .quest-card.quest-completed .quest-card-action .btn-primary {
+        animation: none;
+    }
+}
+
 /* --- Страница профиля (ИСПРАВЛЕНИЕ) --- */
 .profile-header {
     background-color: var(--background-secondary);
