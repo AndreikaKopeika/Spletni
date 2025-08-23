@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}{{ gossip.title }}{% endblock %}
+{% block content %}
+    <article class="gossip-detail-card {% if gossip.author.is_verified %}verified-gossip{% endif %}">
+        
+        {% if gossip.author.is_verified %}
+        <div class="verified-author-notice">
+            <i class="fas fa-check-circle"></i>
+            <div>
+                <strong>Это сплетня от проверенного пользователя.</strong>
+                <p>Проверенные пользователи — это участники, заслужившие доверие сообщества за публикацию качественных и правдивых сплетен. Продолжайте делиться интересными историями, и, возможно, вы тоже получите этот статус!</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <h1 class="gossip-title">{{ gossip.title }}</h1>
+        <div class="gossip-meta">
+            <span class="meta-item">
+                <i class="fas fa-user"></i>
+                <a href="{{ url_for('profile', username=gossip.author.username) }}">{{ gossip.author.username }}</a>
+            </span>
+            <span class="meta-item">
+                <i class="fas fa-clock"></i>
+                <time datetime="{{ gossip.date_posted.isoformat() }}Z">{{ gossip.date_posted.strftime('%Y-%m-%d %H:%M') }}</time>
+            </span>
+            <span class="meta-item">
+                <i class="fas fa-comments"></i>
+                <span id="comment-count">{{ comments|length }}</span>
+            </span>
+        </div>
+        <div class="gossip-content-full">
+             {{ gossip_content_html|safe }}
+        </div>
+        <div class="gossip-actions">
+            {% if current_user.is_authenticated %}
+                <form action="{{ url_for('like_gossip', gossip_id=gossip.id) }}" method="POST" class="inline-form" id="like-form">
+                    {{ like_form.csrf_token }}
+                    <button type="submit" class="btn" id="like-button">
+                        {% if current_user.id in gossip.likes|map(attribute='user_id')|list %}
+                            <i class="fas fa-heart-crack"></i> Убрать лайк (<span id="likes-count">{{ gossip.likes|length }}</span>)
+                        {% else %}
+                            <i class="fas fa-heart"></i> Лайк (<span id="likes-count">{{ gossip.likes|length }}</span>)
+                        {% endif %}
+                    </button>
+                </form>
+            {% else %}
+                <span class="likes-count"><i class="fas fa-heart"></i> Лайки: {{ gossip.likes|length }}</span>
+            {% endif %}
+            
+            {% if current_user.is_authenticated and (current_user == gossip.author or current_user.is_moderator) %}
+                <a href="{{ url_for('update_gossip', gossip_id=gossip.id) }}" class="btn btn-secondary"><i class="fas fa-pencil-alt"></i> Редактировать</a>
+                <form action="{{ url_for('delete_gossip', gossip_id=gossip.id) }}" method="POST" class="inline-form">
+                    {{ delete_gossip_form.csrf_token }}
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Вы уверены, что хотите удалить эту сплетню?');"><i class="fas fa-trash"></i> Удалить</button>
+                </form>
+            {% endif %}
+        </div>
+    </article>
+
+    <!-- Секция комментариев -->
+    <div class="comments-section">
+        <h3 class="section-title">Комментарии (<span id="comment-count">{{ comments|length }}</span>)</h3>
+
+        <!-- Форма добавления комментария -->
+        {% if current_user.is_authenticated %}
+        <form id="comment-form" class="comment-form" method="POST" action="{{ url_for('add_comment', gossip_id=gossip.id) }}">
+            {{ comment_form.csrf_token }}
+            <div class="form-group">
+                <textarea name="content" id="comment-content" class="form-control" rows="3" placeholder="Оставьте свой комментарий..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Отправить</button>
+        </form>
+        {% else %}
+        <p class="auth-prompt">Чтобы оставить комментарий, пожалуйста, <a href="{{ url_for('login') }}">войдите</a> или <a href="{{ url_for('register') }}">зарегистрируйтесь</a>.</p>
+        {% endif %}
+
+        <!-- Список комментариев -->
+        <div id="comments-list" class="comments-list">
+            {% for comment in comments %}
+            <div class="comment-card" id="comment-{{ comment.id }}">
+                <div class="comment-header">
+                    <div class="comment-author">
+                        <a href="{{ url_for('profile', username=comment.author.username) }}">{{ comment.author.username }}</a>
+                        {% if comment.author.is_verified %}<span class="verified-badge" title="Верифицирован"><i class="fas fa-check-circle"></i></span>{% endif %}
+                        {% if comment.author.is_moderator %}<span class="moderator-badge" title="Модератор"><i class="fas fa-shield-alt"></i></span>{% endif %}
+                    </div>
+                    <div class="comment-meta">
+                        <time class="comment-date" datetime="{{ comment.date_posted.isoformat() }}Z">{{ comment.date_posted.strftime('%Y-%m-%d %H:%M') }}</time>
+                        {% if current_user.is_authenticated and (current_user.id == comment.user_id or current_user.id == gossip.user_id or current_user.is_moderator) %}
+                            <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="POST" class="delete-comment-form" onsubmit="return confirm('Вы уверены, что хотите удалить этот комментарий?');">
+                                <input type="hidden" name="csrf_token" value="{{ comment_form.csrf_token.current_token }}">
+                                <button type="submit" class="btn-delete" title="Удалить комментарий"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="comment-content">
+                    <p>{{ comment.content | replace('\n', '<br>') | safe }}</p>
+                </div>
+                <div class="comment-actions">
+                    <form class="like-comment-form" data-comment-id="{{ comment.id }}">
+                        <input type="hidden" name="csrf_token" value="{{ like_form.csrf_token.current_token }}">
+                        <button type="submit" class="btn-like {% if current_user.is_authenticated and comment.likes|selectattr('user_id', 'equalto', current_user.id)|list|length > 0 %}liked{% endif %}">
+                            <i class="fas fa-heart"></i> <span class="like-count">{{ comment.likes|length }}</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <p>Пока нет ни одного комментария. Будьте первым!</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- НОВОЕ: Динамический лайк для самой СПЛЕТНИ ---
+    const gossipLikeForm = document.getElementById('like-form');
+    if (gossipLikeForm) {
+        gossipLikeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const csrfToken = form.querySelector('[name=csrf_token]').value;
+            const likeButton = form.querySelector('#like-button');
+            const likeCountSpan = likeButton.querySelector('#likes-count');
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    likeCountSpan.textContent = data.likes;
+                    likeButton.classList.toggle('liked', data.liked);
+                } else {
+                    alert('Произошла ошибка.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    }
+
+    // --- Динамическое добавление комментариев ---
+    const commentForm = document.getElementById('comment-form');
+    if (commentForm) {
+        commentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const content = formData.get('content');
+            const csrfToken = formData.get('csrf_token');
+            const commentsList = document.getElementById('comments-list');
+            const textarea = form.querySelector('textarea');
+
+            fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: new URLSearchParams(formData).toString()
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    textarea.value = '';
+                    const comment = data.comment;
+                    const newCommentHtml = `
+                        <div class="comment-card" id="comment-${comment.id}" style="opacity: 0; transform: translateY(20px);">
+                            <div class="comment-header">
+                                <div class="comment-author">
+                                    <a href="/user/${comment.author.username}">${comment.author.username}</a>
+                                    ${comment.author.is_verified ? '<span class="verified-badge" title="Верифицирован"><i class="fas fa-check-circle"></i></span>' : ''}
+                                    ${comment.author.is_moderator ? '<span class="moderator-badge" title="Модератор"><i class="fas fa-shield-alt"></i></span>' : ''}
+                                </div>
+                                <div class="comment-meta">
+                                    <time class="comment-date" datetime="${new Date().toISOString()}">${dayjs().format('YYYY-MM-DD HH:mm')}</time>
+                                </div>
+                            </div>
+                            <div class="comment-content">
+                                <p>${comment.content.replace(/\\n/g, '<br>')}</p>
+                            </div>
+                            <div class="comment-actions">
+                                <form class="like-comment-form" data-comment-id="${comment.id}">
+                                    <input type="hidden" name="csrf_token" value="${csrfToken}">
+                                    <button type="submit" class="btn-like">
+                                        <i class="fas fa-heart"></i> <span class="like-count">0</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>`;
+                    
+                    const emptyState = commentsList.querySelector('.empty-state');
+                    if(emptyState) {
+                        emptyState.remove();
+                    }
+                    
+                    commentsList.insertAdjacentHTML('afterbegin', newCommentHtml);
+                    const newCommentElement = document.getElementById(`comment-${comment.id}`);
+                    setTimeout(() => {
+                        newCommentElement.style.opacity = '1';
+                        newCommentElement.style.transform = 'translateY(0)';
+                    }, 50);
+
+                    const commentCountSpan = document.getElementById('comment-count');
+                    commentCountSpan.textContent = data.comments_count;
+
+                    // Повторно запускаем конвертацию, чтобы обработать новый комментарий
+                    convertTimestamps();
+                } else {
+                    alert('Ошибка: ' + (data.message || 'Не удалось отправить комментарий.'));
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    }
+
+    // --- НОВОЕ: Динамические лайки для комментариев ---
+    document.getElementById('comments-list').addEventListener('submit', function(e) {
+        if (e.target.classList.contains('like-comment-form')) {
+            e.preventDefault();
+            const form = e.target;
+            const commentId = form.dataset.commentId;
+            const csrfToken = form.querySelector('[name=csrf_token]').value;
+            const likeButton = form.querySelector('.btn-like');
+            const likeCountSpan = likeButton.querySelector('.like-count');
+
+            fetch(`/comment/${commentId}/like`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    likeCountSpan.textContent = data.likes;
+                    likeButton.classList.toggle('liked', data.liked);
+                } else {
+                    alert('Произошла ошибка.');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    });
+});
+</script>
+{% endblock %}

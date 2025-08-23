@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Магазин{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="shop-container">
+        <h1 class="page-title">Магазин</h1>
+        <p class="page-subtitle">Закрепите свою сплетню на главной странице, чтобы её увидели все!</p>
+
+        <div class="pin-info-card">
+            <h2><i class="fas fa-thumbtack"></i> Текущая закрепленная сплетня</h2>
+            {% if pinned_gossip %}
+                <div class="pinned-gossip">
+                    <p class="pinned-title">"{{ pinned_gossip.title }}"</p>
+                    <p class="pinned-author">Автор: <a href="{{ url_for('profile', username=pinned_gossip.author.username) }}">{{ pinned_gossip.author.username }}</a></p>
+                    <p class="pin-price">Цена перебивки: <strong>{{ pinned_gossip.pin_price * 2 }} <i class="fas fa-coins coin-icon"></i></strong></p>
+                    <p class="pin-timer" data-expires="{{ pinned_gossip.pin_expires_at.isoformat() }}Z">
+                        Осталось времени: <span class="timer">--:--:--</span>
+                    </p>
+                </div>
+            {% else %}
+                <p>Сейчас нет закрепленных сплетен. Будьте первым!</p>
+                <p class="pin-price">Начальная цена: <strong>10 <i class="fas fa-coins coin-icon"></i></strong></p>
+            {% endif %}
+        </div>
+
+        <div class="pin-action-card">
+            <h2><i class="fas fa-award"></i> Закрепить свою сплетню</h2>
+            {% if user_gossips %}
+                <form action="" method="POST" id="pin-form">
+                    {{ form.csrf_token }}
+                    <div class="form-group">
+                        <label for="gossip-select">Выберите сплетню для закрепления:</label>
+                        <select name="gossip_id" id="gossip-select" class="form-control">
+                            {% for gossip in user_gossips %}
+                                <option value="{{ gossip.id }}">{{ gossip.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        {% if pinned_gossip %}
+                            Перебить за {{ pinned_gossip.pin_price * 2 }} <i class="fas fa-coins coin-icon"></i>
+                        {% else %}
+                            Закрепить за 10 <i class="fas fa-coins coin-icon"></i>
+                        {% endif %}
+                    </button>
+                </form>
+            {% else %}
+                <p>У вас еще нет сплетен, чтобы их закреплять. <a href="{{ url_for('new_gossip') }}">Создайте свою первую сплетню!</a></p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Раздел украшений -->
+    <div class="shop-section-header">
+        <h2 class="page-title"><i class="fas fa-gem"></i> Магазин украшений</h2>
+        <p>Персонализируйте свой профиль с помощью уникальных рамок!</p>
+    </div>
+
+    <div class="decorations-grid">
+        {% for decoration in decorations %}
+        <div class="decoration-card rarity-{{ decoration.rarity }}">
+            <div class="decoration-preview">
+                <div class="profile-card-preview {{ decoration.css_class }}">
+                    <div class="profile-card-preview-header">
+                        <span class="profile-card-preview-name">{{ current_user.username }}</span>
+                    </div>
+                    {% if 'flaming' in decoration.css_class %}
+                        <div class="particle-container">
+                            {% for i in range(1, 11) %}<span class="spark spark-{{ i }}"></span>{% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if 'verified' in decoration.css_class or 'moderator' in decoration.css_class %}
+                        <div class="particle-container">
+                            {% for i in range(1, 11) %}<span class="particle particle-{{ i }}"></span>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="decoration-info">
+                <h3 class="decoration-name">{{ decoration.name }}</h3>
+                <p class="decoration-description">{{ decoration.description }}</p>
+                <div class="decoration-footer">
+                    <span class="decoration-price"><i class="fas fa-coins"></i> {{ decoration.price }}</span>
+                    {% if decoration.id in owned_decorations_ids %}
+                        <button class="btn btn-secondary" disabled>Куплено</button>
+                    {% else %}
+                        <form action="{{ url_for('buy_decoration', decoration_id=decoration.id) }}" method="POST">
+                            {{ form.csrf_token }}
+                            <button type="submit" class="btn btn-primary">Купить</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</main>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const timerElement = document.querySelector('.pin-timer .timer');
+    const timerContainer = document.querySelector('.pin-timer');
+
+    if (timerContainer && timerContainer.dataset.expires) {
+        const expiresAt = dayjs(timerContainer.dataset.expires);
+
+        const updateTimer = () => {
+            const now = dayjs();
+            if (now.isAfter(expiresAt)) {
+                timerElement.textContent = 'Время истекло';
+                clearInterval(interval);
+                return;
+            }
+            const duration = dayjs.duration(expiresAt.diff(now));
+            const hours = String(duration.hours()).padStart(2, '0');
+            const minutes = String(duration.minutes()).padStart(2, '0');
+            const seconds = String(duration.seconds()).padStart(2, '0');
+            timerElement.textContent = `${hours}:${minutes}:${seconds}`;
+        };
+
+        const interval = setInterval(updateTimer, 1000);
+        updateTimer();
+    }
+    
+    // Динамическое изменение action формы
+    const pinForm = document.getElementById('pin-form');
+    const gossipSelect = document.getElementById('gossip-select');
+    if(pinForm && gossipSelect) {
+        const updateAction = () => {
+            const selectedGossipId = gossipSelect.value;
+            pinForm.action = `/gossip/${selectedGossipId}/pin`;
+        }
+        gossipSelect.addEventListener('change', updateAction);
+        // Установить правильный action при загрузке
+        updateAction();
+    }
+});
+</script>
+{% endblock %}

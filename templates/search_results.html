@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Результаты поиска: {{ query }}{% endblock %}
+{% block content %}
+    <div class="container search-results-container">
+        <h1 class="page-title">Результаты поиска по: "{{ query }}"</h1>
+
+        <div class="gossip-list">
+            {% for gossip in gossips %}
+                <div class="gossip-card" id="gossip-{{ gossip.id }}">
+                    <div class="gossip-card-header">
+                        <div class="gossip-author-info {% if gossip.author.active_decoration %}{{ gossip.author.active_decoration.css_class }}{% endif %}">
+                            {% if gossip.author.active_decoration and 'flaming' in gossip.author.active_decoration.css_class %}
+                                <div class="particle-container">
+                                    {% for i in range(1, 11) %}<span class="spark spark-{{ i }}"></span>{% endfor %}
+                                </div>
+                            {% endif %}
+                            {% if gossip.author.active_decoration and ('verified' in gossip.author.active_decoration.css_class or 'moderator' in gossip.author.active_decoration.css_class) %}
+                                <div class="particle-container">
+                                    {% for i in range(1, 11) %}<span class="particle particle-{{ i }}"></span>{% endfor %}
+                                </div>
+                            {% endif %}
+                            <a href="{{ url_for('profile', username=gossip.author.username) }}" class="author-link">
+                                <span class="gossip-author">{{ gossip.author.username }}</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="gossip-content">
+                        <h2 class="gossip-title"><a href="{{ url_for('gossip', gossip_id=gossip.id) }}">{{ gossip.title }}</a></h2>
+                        <p class="gossip-content-preview">{{ gossip.content[:250] }}{% if gossip.content|length > 250 %}...{% endif %}</p>
+                        <div class="gossip-footer">
+                            <div class="gossip-stats">
+                                <span><i class="fas fa-heart"></i> {{ gossip.likes|length }}</span>
+                                <span><i class="fas fa-comment"></i> {{ gossip.comments|length }}</span>
+                            </div>
+                            <a href="{{ url_for('gossip', gossip_id=gossip.id) }}" class="btn btn-secondary">Открыть</a>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <p>По вашему запросу ничего не найдено.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <nav class="pagination">
+        {% if gossips.has_prev %}
+            <a href="{{ url_for('search', q=query, page=gossips.prev_num) }}" class="btn btn-secondary">&laquo; Новее</a>
+        {% endif %}
+        {% if gossips.has_next %}
+            <a href="{{ url_for('search', q=query, page=gossips.next_num) }}" class="btn btn-secondary">Старее &raquo;</a>
+        {% endif %}
+    </nav>
+{% endblock %}

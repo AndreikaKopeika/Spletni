@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Настройки уведомлений{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="tabs-navigation">
+        <a href="{{ url_for('edit_profile') }}" class="tab-link">Основное</a>
+        <a href="{{ url_for('customize_profile') }}" class="tab-link">Кастомизация</a>
+        <a href="{{ url_for('notification_settings') }}" class="tab-link active">Уведомления</a>
+    </div>
+
+    <div class="form-container">
+        <h1 class="page-title">Настройки уведомлений</h1>
+        <p class="page-subtitle">Выберите, какие уведомления вы хотите получать.</p>
+
+        <div class="settings-form-container">
+            <form method="POST" action="{{ url_for('notification_settings') }}" class="settings-form">
+                {{ form.hidden_tag() }}
+
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="notify_on_like" name="notify_on_like" {% if current_user.notify_on_like %}checked{% endif %}>
+                    <label class="form-check-label" for="notify_on_like">
+                        Получать уведомления о новых лайках
+                        <span class="form-check-description">Вам будут приходить оповещения, когда кто-то оценит вашу сплетню.</span>
+                    </label>
+                </div>
+
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="notify_on_comment" name="notify_on_comment" {% if current_user.notify_on_comment %}checked{% endif %}>
+                    <label class="form-check-label" for="notify_on_comment">
+                        Получать уведомления о новых комментариях
+                        <span class="form-check-description">Вам будут приходить оповещения, когда кто-то прокомментирует вашу сплетню.</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+{% endblock %}

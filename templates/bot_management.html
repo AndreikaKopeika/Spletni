@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Управление ботами{% endblock %}
+
+{% block content %}
+<main class="container">
+    <h1 class="page-title">Панель управления ботами</h1>
+    <p class="page-subtitle">Здесь вы можете создавать и управлять ботами для имитации активности на сайте.</p>
+
+    <div class="bot-management-grid">
+        <!-- Секция создания ботов -->
+        <div class="card">
+            <h2 class="card-header">Создать ботов</h2>
+            <form method="POST" action="{{ url_for('bot_management_panel') }}" class="card-body">
+                {{ form.hidden_tag() }}
+                <input type="hidden" name="action" value="create">
+                <div class="form-group">
+                    <label for="bot_count">Количество ботов для создания:</label>
+                    <input type="number" id="bot_count" name="bot_count" class="form-control" value="5" min="1" max="100">
+                </div>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </form>
+        </div>
+
+        <!-- Секция управления -->
+        <div class="card">
+            <h2 class="card-header">Массовые действия</h2>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('bot_management_panel') }}" style="display: inline-block;">
+                    {{ form.hidden_tag() }}
+                    <input type="hidden" name="action" value="delete_all">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Вы уверены, что хотите удалить ВСЕХ ботов?');">Удалить всех ботов</button>
+                </form>
+                <form method="POST" action="{{ url_for('bot_management_panel') }}" style="display: inline-block;">
+                    {{ form.hidden_tag() }}
+                    <input type="hidden" name="action" value="trigger_activity">
+                    <button type="submit" class="btn btn-success">Активировать ботов (Тест)</button>
+                </form>
+                <form method="POST" action="{{ url_for('generate_ai_gossip_route') }}" style="display: inline-block;">
+                    {{ form.hidden_tag() }}
+                    <button type="submit" class="btn btn-info" onclick="return confirm('Создать AI сплетню от имени случайного бота?');">
+                        🤖 Создать AI сплетню
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('generate_ai_comments_route') }}" style="display: inline-block;">
+                    {{ form.hidden_tag() }}
+                    <input type="number" name="comment_count" value="5" min="1" max="20" style="width: 60px; margin-right: 5px;">
+                    <button type="submit" class="btn btn-warning" onclick="return confirm('Создать AI комментарии от имени случайных ботов?');">
+                        💬 Создать AI комментарии
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список существующих ботов -->
+    <div class="card mt-4">
+        <h2 class="card-header">Список ботов ({{ bots|length }})</h2>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Имя</th>
+                        <th>Коины</th>
+                        <th>Репутация</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bot in bots %}
+                    <tr>
+                        <td>{{ bot.id }}</td>
+                        <td><a href="{{ url_for('profile', username=bot.username) }}">{{ bot.username }}</a></td>
+                        <td>{{ bot.spletni_coins }}</td>
+                        <td>{{ bot.reputation }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('bot_management_panel') }}" style="display: inline;">
+                                {{ form.hidden_tag() }}
+                                <input type="hidden" name="action" value="delete_one">
+                                <input type="hidden" name="bot_id" value="{{ bot.id }}">
+                                <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">Ботов пока нет.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+{% endblock %}

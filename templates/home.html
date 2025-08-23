@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Главная{% endblock %}
+{% block content %}
+    <main class="container">
+
+        <div class="welcome-banner">
+            <h2>🍉 Добро пожаловать на сервер "Безумные арбузы"! 🍉</h2>
+            <p>
+                Это закрытое тестирование нашего нового проекта. Исследуйте сайт, делитесь сплетнями, выполняйте квесты!
+                Если вы столкнетесь с ошибкой или у вас есть предложение по улучшению, пожалуйста, 
+                <a href="{{ url_for('report_bug') }}">сообщите нам</a>. Ваша помощь неоценима!
+            </p>
+        </div>
+
+        {% if pinned_gossip %}
+        <div class="pinned-gossip-card">
+            <h3><i class="fas fa-thumbtack"></i> Закрепленная сплетня</h3>
+            <div class="gossip-card">
+                <div class="gossip-header">
+                    <h2 class="gossip-title"><a href="{{ url_for('gossip', gossip_id=pinned_gossip.id) }}">{{ pinned_gossip.title }}</a></h2>
+                    <div class="gossip-meta">
+                        <span class="gossip-author">от <a href="{{ url_for('profile', username=pinned_gossip.author.username) }}">{{ pinned_gossip.author.username }}</a></span>
+                        <time class="gossip-date" datetime="{{ pinned_gossip.date_posted.isoformat() }}Z">{{ pinned_gossip.date_posted.strftime('%Y-%m-%d %H:%M') }}</time>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="featured-sections">
+            {% if best_of_week %}
+            <div class="featured-section-card">
+                <h3 class="section-subtitle">Лучшее за неделю</h3>
+                <ul class="featured-list">
+                    {% for gossip in best_of_week %}
+                    <li><a href="{{ url_for('gossip', gossip_id=gossip.id) }}">{{ gossip.title }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if from_verified %}
+            <div class="featured-section-card">
+                <h3 class="section-subtitle">От проверенных</h3>
+                <ul class="featured-list">
+                    {% for gossip in from_verified %}
+                    <li><a href="{{ url_for('gossip', gossip_id=gossip.id) }}">{{ gossip.title }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if trending %}
+            <div class="featured-section-card">
+                <h3 class="section-subtitle">В тренде</h3>
+                <ul class="featured-list">
+                    {% for gossip in trending %}
+                    <li><a href="{{ url_for('gossip', gossip_id=gossip.id) }}">{{ gossip.title }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="gossip-feed">
+            <h3 class="section-subtitle">Новые сплетни</h3>
+            <section class="main-feed">
+                {% for gossip in gossips.items %}
+                <article class="gossip-card" id="gossip-{{ gossip.id }}">
+                    <div class="gossip-author-info {% if gossip.author.active_decoration %}{{ gossip.author.active_decoration.css_class }}{% endif %}">
+                        {% if gossip.author.active_decoration and 'flaming' in gossip.author.active_decoration.css_class %}
+                            <div class="particle-container">
+                                {% for i in range(1, 11) %}<span class="spark spark-{{ i }}"></span>{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if gossip.author.active_decoration and ('verified' in gossip.author.active_decoration.css_class or 'moderator' in gossip.author.active_decoration.css_class) %}
+                            <div class="particle-container">
+                                {% for i in range(1, 11) %}<span class="particle particle-{{ i }}"></span>{% endfor %}
+                            </div>
+                        {% endif %}
+                        <a href="{{ url_for('profile', username=gossip.author.username) }}" class="gossip-author-link">
+                             <div class="author-details">
+                                <h3 class="gossip-author-name">{{ gossip.author.username }}</h3>
+                                <p class="gossip-author-bio">{{ gossip.author.bio }}</p>
+                            </div>
+                        </a>
+                    </div>
+                    <h2 class="gossip-title"><a href="{{ url_for('gossip', gossip_id=gossip.id) }}">{{ gossip.title }}</a></h2>
+                    <div class="gossip-meta">
+                        <span class="gossip-author">
+                            <a href="{{ url_for('profile', username=gossip.author.username) }}">{{ gossip.author.username }}</a>
+                        </span>
+                        <time datetime="{{ gossip.date_posted.isoformat() }}Z">{{ gossip.date_posted.strftime('%Y-%m-%d %H:%M') }}</time>
+                    </div>
+                    <p class="gossip-content-preview">{{ gossip.content[:250] }}{% if gossip.content|length > 250 %}...{% endif %}</p>
+                    <div class="gossip-footer">
+                        <div class="gossip-stats">
+                            <span><i class="fas fa-heart"></i> {{ gossip.likes|length }}</span>
+                            <span><i class="fas fa-comment"></i> {{ gossip.comments|length }}</span>
+                        </div>
+                        <a href="{{ url_for('gossip', gossip_id=gossip.id) }}" class="btn btn-secondary">Открыть</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </section>
+        </div>
+
+    <nav class="pagination">
+        {% if gossips.has_prev %}
+            <a href="{{ url_for('home', page=gossips.prev_num) }}" class="btn btn-secondary">&laquo; Новее</a>
+        {% endif %}
+        {% if gossips.has_next %}
+            <a href="{{ url_for('home', page=gossips.next_num) }}" class="btn btn-secondary">Старее &raquo;</a>
+        {% endif %}
+    </nav>
+{% endblock %}

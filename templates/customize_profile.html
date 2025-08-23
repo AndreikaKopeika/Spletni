@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Кастомизация профиля{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="tabs-navigation">
+        <a href="{{ url_for('edit_profile') }}" class="tab-link">Основное</a>
+        <a href="{{ url_for('customize_profile') }}" class="tab-link active">Кастомизация</a>
+        <a href="{{ url_for('notification_settings') }}" class="tab-link">Уведомления</a>
+    </div>
+
+    <h1 class="page-title">Кастомизация профиля</h1>
+    <p class="page-subtitle">Здесь вы можете выбрать, какое из ваших украшений будет отображаться на вашем профиле.</p>
+
+    <form method="POST" action="{{ url_for('customize_profile') }}">
+        {{ form.hidden_tag() }}
+        <div class="decorations-grid-customize">
+            <!-- No decoration -->
+            <div class="decoration-choice-card {% if not current_user.active_decoration_id %}selected{% endif %}">
+                <input type="radio" name="decoration_id" value="0" {% if not current_user.active_decoration_id %}checked{% endif %}>
+                <div class="decoration-preview-customize">
+                    <div class="profile-card-preview">
+                        <span class="preview-username">{{ current_user.username }}</span>
+                        <span class="preview-rep">Репутация: {{ current_user.reputation }}</span>
+                    </div>
+                </div>
+                <div class="decoration-info-customize">
+                    <h3 class="decoration-name">Без украшения</h3>
+                </div>
+            </div>
+            
+            <!-- Купленные украшения -->
+            {% for decoration in current_user.decorations %}
+            <div class="decoration-choice-card">
+                <input type="radio" name="decoration_id" value="{{ decoration.id }}" {% if current_user.active_decoration_id == decoration.id %}checked{% endif %}>
+                <div class="decoration-preview-customize">
+                    <div class="profile-card-preview {{ decoration.css_class }}">
+                        <div class="profile-card-preview-header">
+                            <span class="profile-card-preview-name">{{ current_user.username }}</span>
+                        </div>
+                        {% if 'flaming' in decoration.css_class %}
+                            <div class="particle-container">
+                                {% for i in range(1, 11) %}<span class="spark spark-{{ i }}"></span>{% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if 'verified' in decoration.css_class or 'moderator' in decoration.css_class %}
+                            <div class="particle-container">
+                                {% for i in range(1, 11) %}<span class="particle particle-{{ i }}"></span>{% endfor %}
+                            </div>
+                        {% endif %}
+                        <span class="rarity-badge">{{ decoration.rarity }}</span>
+                        <span class="preview-username">{{ current_user.username }}</span>
+                        <span class="preview-rep">Репутация: {{ current_user.reputation }}</span>
+                    </div>
+                </div>
+                <div class="decoration-info-customize">
+                    <h3 class="decoration-name">{{ decoration.name }}</h3>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="form-group text-center">
+            <button type="submit" class="btn btn-primary save-customization-btn">Сохранить</button>
+        </div>
+    </form>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const decorationChoices = document.querySelectorAll('.decoration-choice-card');
+
+    decorationChoices.forEach(card => {
+        card.addEventListener('click', function () {
+            // Снимаем выделение со всех карточек
+            decorationChoices.forEach(c => c.classList.remove('selected'));
+            // Выделяем текущую
+            this.classList.add('selected');
+            // Программно "кликаем" по скрытому радио-баттону внутри
+            this.querySelector('input[type="radio"]').checked = true;
+        });
+
+        // Устанавливаем класс selected для уже активного украшения при загрузке страницы
+        if (card.querySelector('input[type="radio"]').checked) {
+            card.classList.add('selected');
+        }
+    });
+});
+</script>
+
+{% endblock %}

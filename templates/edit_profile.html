@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование профиля{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="tabs-navigation">
+        <a href="{{ url_for('edit_profile') }}" class="tab-link active">Основное</a>
+        <a href="{{ url_for('customize_profile') }}" class="tab-link">Кастомизация</a>
+        <a href="{{ url_for('notification_settings') }}" class="tab-link">Уведомления</a>
+    </div>
+
+    <div class="form-container">
+        <h1 class="page-title">Редактирование профиля</h1>
+        <form method="POST" class="modern-form">
+            {{ form.csrf_token }}
+
+            <div class="form-group">
+                <label for="description">Обо мне</label>
+                <textarea name="description" id="description" class="form-control" rows="5" placeholder="Расскажите немного о себе...">{{ current_user.description or '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="pinned_gossip">Закрепленная сплетня</label>
+                <select name="pinned_gossip" id="pinned_gossip" class="form-control">
+                    <option value="0">-- Не закреплять --</option>
+                    {% for gossip in user_gossips %}
+                        <option value="{{ gossip.id }}" {% if current_user.pinned_gossip_id == gossip.id %}selected{% endif %}>
+                            {{ gossip.title }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <small class="form-text text-muted">
+                    Выберите одну из ваших сплетен, чтобы она отображалась вверху вашего профиля.
+                </small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Сохранить изменения</button>
+                <a href="{{ url_for('profile', username=current_user.username) }}" class="btn btn-secondary">Посмотреть профиль</a>
+            </div>
+        </form>
+
+        <div class="profile-summary">
+            <h3>Ваш текущий профиль</h3>
+            <p><strong>Имя пользователя:</strong> {{ current_user.username }}</p>
+            <p><strong>Репутация:</strong> <span class="reputation-score {% if current_user.reputation > 0 %}rep-positive{% elif current_user.reputation < 0 %}rep-negative{% endif %}">{{ current_user.reputation }}</span></p>
+            <p><strong>Сплетни коины:</strong> <span class="gossip-coins-display-inline"><i class="fas fa-coins"></i> {{ current_user.gossip_coins }}</span></p>
+        </div>
+    </div>
+</main>
+{% endblock %}

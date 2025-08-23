@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Центр Сплетни Коинов{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="coin-center-header">
+        <h1 class="page-title">
+            <i class="fas fa-coins coin-icon-large"></i>
+            Центр Сплетни Коинов
+        </h1>
+        <div class="coin-balance-card">
+            <p>Ваш текущий баланс</p>
+            <div class="balance-amount">
+                <i class="fas fa-coins coin-icon"></i>
+                <span>{{ current_user.gossip_coins }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="coin-center-grid">
+        <!-- Что такое Сплетни Коины? -->
+        <div class="info-card">
+            <h2 class="card-title"><i class="fas fa-info-circle"></i> Что это такое?</h2>
+            <p><strong>Сплетни Коины</strong> — это внутренняя валюта нашего сайта. Вы можете зарабатывать их, проявляя активность, и тратить на уникальные возможности, чтобы выделиться среди других.</p>
+        </div>
+
+        <!-- Как заработать? -->
+        <div class="info-card earn-card">
+            <h2 class="card-title"><i class="fas fa-hand-holding-usd"></i> Как заработать?</h2>
+            <ul class="earn-list">
+                <li>
+                    <i class="fas fa-tasks text-success"></i>
+                    <div>
+                        <strong>Выполняйте квесты</strong>
+                        <small>Каждый день доступны новые задания с щедрой наградой.</small>
+                    </div>
+                </li>
+                <li>
+                    <i class="fas fa-heart text-danger"></i>
+                    <div>
+                        <strong>Получайте лайки</strong>
+                        <small>+1 коин за каждый лайк на вашу сплетню.</small>
+                    </div>
+                </li>
+                <li>
+                    <i class="fas fa-comments text-info"></i>
+                    <div>
+                        <strong>Получайте комментарии</strong>
+                        <small>+2 коина за каждый комментарий к вашей сплетне.</small>
+                    </div>
+                </li>
+                 <li>
+                    <i class="fas fa-star text-warning"></i>
+                    <div>
+                        <strong>Участвуйте в событиях</strong>
+                        <small>Следите за новостями, чтобы не пропустить особые ивенты!</small>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- На что потратить? -->
+        <div class="info-card spend-card">
+            <h2 class="card-title"><i class="fas fa-shopping-cart"></i> На что потратить?</h2>
+            <p>Загляните в <strong>Магазин</strong>, чтобы потратить накопленные коины на:</p>
+            <ul>
+                <li><strong>Закрепление сплетни</strong> - сделайте свой пост самым заметным!</li>
+                <li><strong>Кастомизация профиля</strong> (скоро) - рамки, цвета и значки.</li>
+                <li><strong>Эксклюзивные предметы</strong> (скоро) - для самых активных.</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="action-buttons-container">
+        <a href="{{ url_for('quests') }}" class="action-btn quests-btn">
+            <i class="fas fa-tasks"></i>
+            <span>К ежедневным квестам</span>
+        </a>
+        <a href="{{ url_for('shop') }}" class="action-btn shop-btn">
+            <i class="fas fa-store"></i>
+            <span>В магазин</span>
+        </a>
+    </div>
+    
+    <div class="coin-center-grid">
+        <!-- Перевод коинов -->
+        <div class="info-card transfer-card">
+            <h2 class="card-title"><i class="fas fa-exchange-alt"></i> Перевести коины</h2>
+            <form method="POST" action="{{ url_for('coin_center') }}" class="transfer-form">
+                {{ form.csrf_token }}
+                <div class="form-group">
+                    <label for="recipient">Имя получателя</label>
+                    <input type="text" id="recipient" name="recipient" class="form-control" required placeholder="Например, JohnDoe">
+                </div>
+                <div class="form-group">
+                    <label for="amount">Сумма</label>
+                    <input type="number" id="amount" name="amount" class="form-control" required min="1" placeholder="100">
+                </div>
+                <div class="form-group">
+                    <label for="message">Сообщение (необязательно)</label>
+                    <input type="text" id="message" name="message" class="form-control" maxlength="200" placeholder="На удачу!">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Отправить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- История транзакций -->
+    <div class="info-card">
+        <h2 class="card-title"><i class="fas fa-history"></i> История транзакций</h2>
+        {% if transactions %}
+            <ul class="transaction-list">
+                {% for tx in transactions %}
+                    <li class="transaction-item {% if tx.recipient_id == current_user.id %}received{% else %}sent{% endif %}">
+                        <div class="transaction-details">
+                            <div class="transaction-icon">
+                                {% if tx.recipient_id == current_user.id %}
+                                    <i class="fas fa-arrow-down"></i>
+                                {% else %}
+                                    <i class="fas fa-arrow-up"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <p class="transaction-info">
+                                    {% if tx.recipient_id == current_user.id %}
+                                        Получено от <strong>{{ tx.sender.username }}</strong>
+                                    {% else %}
+                                        Отправлено <strong>{{ tx.recipient.username }}</strong>
+                                    {% endif %}
+                                </p>
+                                {% if tx.message %}
+                                    <p class="transaction-message">"{{ tx.message }}"</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="transaction-meta">
+                            <span class="transaction-amount">
+                                {% if tx.recipient_id == current_user.id %}+{% else %}-{% endif %}{{ tx.amount }} <i class="fas fa-coins coin-icon"></i>
+                            </span>
+                            <time class="transaction-time" datetime="{{ tx.timestamp.isoformat() }}Z">{{ tx.timestamp.strftime('%Y-%m-%d %H:%M') }}</time>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>У вас пока нет истории переводов.</p>
+        {% endif %}
+    </div>
+
+</main>
+{% endblock %}

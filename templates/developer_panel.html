@@ -1,0 +1,761 @@
+{% extends "base.html" %}
+
+{% block title %}Панель разработчика{% endblock %}
+
+{% block content %}
+<main class="container">
+    <!-- Заголовок и навигация -->
+    <div class="dev-header">
+        <h1 class="page-title">Панель разработчика</h1>
+        <div class="dev-nav">
+            <a href="{{ url_for('bot_management_panel') }}" class="btn btn-info">
+                <i class="fas fa-robot"></i> Управление ботами
+            </a>
+            <a href="{{ url_for('developer_logout') }}" class="btn btn-danger">
+                <i class="fas fa-sign-out-alt"></i> Выйти
+            </a>
+        </div>
+    </div>
+
+    <!-- Секция управления сервером -->
+    <section class="dev-panel-section" id="server-section">
+        <h2 class="section-title">
+            <i class="fas fa-server"></i> Управление сервером
+        </h2>
+        <div class="dev-actions-grid">
+            <form action="{{ url_for('create_backup_route') }}" method="POST" class="action-form">
+                {{ form.csrf_token }}
+                <button type="submit" class="btn btn-success" onclick="return confirm('Создать резервную копию базы данных?');">
+                    <i class="fas fa-save"></i> Создать бэкап БД
+                </button>
+            </form>
+            
+            <form action="{{ url_for('developer_refresh_quests') }}" method="POST" class="action-form">
+                {{ form.csrf_token }}
+                <button type="submit" class="btn btn-info" onclick="return confirm('Обновить квесты для всех пользователей?');">
+                    <i class="fas fa-sync"></i> Обновить квесты
+                </button>
+            </form>
+            
+            <form action="{{ url_for('restart_server') }}" method="POST" class="action-form">
+                {{ form.csrf_token }}
+                <button type="submit" class="btn btn-warning" onclick="return confirm('Перезапустить сервер?');">
+                    <i class="fas fa-redo"></i> Перезапустить сервер
+                </button>
+            </form>
+            
+            <form action="{{ url_for('reset_db') }}" method="POST" class="action-form">
+                {{ form.csrf_token }}
+                <button type="submit" class="btn btn-danger" onclick="return confirm('ВНИМАНИЕ! Это ПОЛНОСТЬЮ удалит все данные из базы. Продолжить?');">
+                    <i class="fas fa-trash"></i> Сбросить БД
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Секция резервных копий -->
+    <section class="dev-panel-section" id="backups-section">
+        <h2 class="section-title">
+            <i class="fas fa-database"></i> Резервные копии
+        </h2>
+        
+        <!-- Автоматические бэкапы -->
+        <div class="backup-section">
+            <h3><i class="fas fa-clock"></i> Автоматические бэкапы (последние 30)</h3>
+            {% if backups.automatic %}
+                <div class="table-responsive">
+                    <table class="backup-table">
+                        <thead>
+                            <tr>
+                                <th>Файл</th>
+                                <th>Размер</th>
+                                <th>Дата создания</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for backup in backups.automatic %}
+                            <tr>
+                                <td>{{ backup.filename }}</td>
+                                <td>{{ backup.size_mb }} МБ</td>
+                                <td>{{ backup.created.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="no-data">Автоматические бэкапы пока не созданы</p>
+            {% endif %}
+        </div>
+
+        <!-- Ручные бэкапы -->
+        <div class="backup-section">
+            <h3><i class="fas fa-hand-paper"></i> Ручные бэкапы</h3>
+            {% if backups.manual %}
+                <div class="table-responsive">
+                    <table class="backup-table">
+                        <thead>
+                            <tr>
+                                <th>Файл</th>
+                                <th>Размер</th>
+                                <th>Дата создания</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for backup in backups.manual %}
+                            <tr>
+                                <td>{{ backup.filename }}</td>
+                                <td>{{ backup.size_mb }} МБ</td>
+                                <td>{{ backup.created.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="no-data">Ручные бэкапы пока не созданы</p>
+            {% endif %}
+        </div>
+
+        <div class="backup-info">
+            <h4><i class="fas fa-info-circle"></i> Информация о бэкапах</h4>
+            <ul>
+                <li>Автоматические бэкапы создаются каждые 2 часа</li>
+                <li>Хранится до 30 последних автоматических бэкапов</li>
+                <li>Ручные бэкапы не удаляются автоматически</li>
+                <li>Все бэкапы сохраняются в папке <code>database_backups/</code></li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Секция статистики -->
+    <section class="dev-panel-section" id="charts-section">
+        <h2 class="section-title">
+            <i class="fas fa-chart-line"></i> Статистика активности
+        </h2>
+        
+        <!-- Управление графиками -->
+        <div class="chart-controls">
+            <form method="GET" action="{{ url_for('developer_panel') }}" class="chart-form">
+                <!-- Сохраняем параметры поиска пользователей -->
+                <input type="hidden" name="search" value="{{ search_query or '' }}">
+                <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                
+                <div class="chart-controls-row">
+                    <div class="form-group">
+                        <label for="time_range">Диапазон времени:</label>
+                        <select name="time_range" id="time_range" class="form-control">
+                            <option value="1_day" {% if time_range == '1_day' %}selected{% endif %}>Последние 24 часа</option>
+                            <option value="3_days" {% if time_range == '3_days' %}selected{% endif %}>Последние 3 дня</option>
+                            <option value="7_days" {% if time_range == '7_days' %}selected{% endif %}>Последние 7 дней</option>
+                            <option value="30_days" {% if time_range == '30_days' %}selected{% endif %}>Последние 30 дней</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="time_interval">Интервал:</label>
+                        <select name="time_interval" id="time_interval" class="form-control">
+                            <option value="minutes" {% if time_interval == 'minutes' %}selected{% endif %}>По минутам</option>
+                            <option value="hours" {% if time_interval == 'hours' %}selected{% endif %}>По часам</option>
+                            <option value="days" {% if time_interval == 'days' %}selected{% endif %}>По дням</option>
+                            <option value="weeks" {% if time_interval == 'weeks' %}selected{% endif %}>По неделям</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sync"></i> Обновить графики
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="charts-container">
+            <div class="chart-wrapper">
+                <h3><i class="fas fa-comments"></i> Сплетни</h3>
+                <canvas id="gossipsChart"></canvas>
+            </div>
+            <div class="chart-wrapper">
+                <h3><i class="fas fa-reply"></i> Комментарии</h3>
+                <canvas id="commentsChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- Секция управления пользователями -->
+    <section class="dev-panel-section" id="users-section">
+        <h2 class="section-title">
+            <i class="fas fa-users"></i> Управление пользователями ({{ users|length }})
+        </h2>
+        
+        <!-- Поиск и фильтрация -->
+        <div class="user-controls">
+            <form method="GET" action="{{ url_for('developer_panel') }}" class="filter-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <input type="text" name="search" placeholder="Поиск по нику..." 
+                               value="{{ search_query or '' }}" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <select name="sort_by" class="form-control">
+                            <option value="date_registered" {% if sort_by == 'date_registered' %}selected{% endif %}>
+                                Дата регистрации
+                            </option>
+                            <option value="reputation" {% if sort_by == 'reputation' %}selected{% endif %}>
+                                Репутация
+                            </option>
+                            <option value="gossip_coins" {% if sort_by == 'gossip_coins' %}selected{% endif %}>
+                                Сплетникоины
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <select name="sort_order" class="form-control">
+                            <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>
+                                От большего к меньшему
+                            </option>
+                            <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>
+                                От меньшего к большему
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Применить
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Таблица пользователей -->
+        <div class="table-responsive">
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Имя пользователя</th>
+                        <th>Репутация</th>
+                        <th>Сплетникоины</th>
+                        <th>Модератор</th>
+                        <th>Проверенный</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>
+                            <span class="reputation-badge {% if user.reputation > 0 %}positive{% elif user.reputation < 0 %}negative{% endif %}">
+                                {{ user.reputation }}
+                            </span>
+                        </td>
+                        <td>{{ user.gossip_coins }}</td>
+                        <td>
+                            <span class="status-badge {% if user.is_moderator %}moderator{% endif %}">
+                                {{ 'Да' if user.is_moderator else 'Нет' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge {% if user.is_verified %}verified{% endif %}">
+                                {{ 'Да' if user.is_verified else 'Нет' }}
+                            </span>
+                        </td>
+                        <td class="action-buttons">
+                            <a href="{{ url_for('toggle_moderator', user_id=user.id) }}" 
+                               class="btn btn-secondary btn-sm">
+                                {{ 'Снять модератора' if user.is_moderator else 'Назначить модератора' }}
+                            </a>
+                            <a href="{{ url_for('toggle_verified', user_id=user.id) }}" 
+                               class="btn btn-secondary btn-sm">
+                                {{ 'Снять верификацию' if user.is_verified else 'Верифицировать' }}
+                            </a>
+                            <form action="{{ url_for('add_coins', user_id=user.id) }}" method="POST" class="coin-form">
+                                {{ form.csrf_token }}
+                                <input type="number" name="amount" class="form-control form-control-sm" 
+                                       placeholder="Кол-во" required min="1">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-plus"></i> Добавить коины
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<style>
+/* Стили для панели разработчика */
+.dev-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--accent-color);
+}
+
+.dev-nav {
+    display: flex;
+    gap: 1rem;
+}
+
+.dev-panel-section {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+    color: var(--text-color);
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dev-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.action-form {
+    margin: 0;
+}
+
+.backup-section {
+    margin-bottom: 2rem;
+}
+
+.backup-section h3 {
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.backup-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.backup-table th,
+.backup-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.backup-table th {
+    background: var(--accent-color);
+    color: white;
+    font-weight: 600;
+}
+
+.backup-info {
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid var(--accent-color);
+}
+
+.backup-info h4 {
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.backup-info ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.backup-info li {
+    margin-bottom: 0.25rem;
+    color: var(--text-secondary);
+}
+
+.chart-controls {
+    margin-bottom: 2rem;
+}
+
+.chart-form {
+    background: var(--bg-color);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.chart-controls-row {
+    display: flex;
+    gap: 1.5rem;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.chart-controls-row .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.chart-controls-row label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+}
+
+.chart-wrapper {
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 8px;
+    height: 300px;
+}
+
+.chart-wrapper h3 {
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.user-controls {
+    margin-bottom: 1.5rem;
+}
+
+.filter-form {
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.form-group {
+    flex: 1;
+    min-width: 150px;
+}
+
+.user-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.user-table th,
+.user-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-table th {
+    background: var(--accent-color);
+    color: white;
+    font-weight: 600;
+}
+
+.reputation-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.reputation-badge.positive {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+}
+
+.reputation-badge.negative {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    background: rgba(108, 117, 125, 0.2);
+    color: #6c757d;
+}
+
+.status-badge.moderator {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.status-badge.verified {
+    background: rgba(0, 123, 255, 0.2);
+    color: #007bff;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.coin-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.coin-form input {
+    width: 80px;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    padding: 2rem;
+}
+
+@media (max-width: 768px) {
+    .dev-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .dev-actions-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-controls-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .chart-controls-row .form-group {
+        min-width: auto;
+    }
+    
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row {
+        flex-direction: column;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .coin-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Функция для прокрутки к секции
+    function scrollToSection() {
+        // Проверяем параметр из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        let scrollTo = urlParams.get('scroll_to');
+        
+        // Если нет в URL, проверяем параметр из шаблона
+        if (!scrollTo && '{{ scroll_to }}') {
+            scrollTo = '{{ scroll_to }}';
+        }
+        
+        if (scrollTo) {
+            const element = document.getElementById(scrollTo);
+            if (element) {
+                // Небольшая задержка для полной загрузки страницы
+                setTimeout(() => {
+                    element.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                    // Убираем параметр из URL без перезагрузки страницы
+                    const newUrl = new URL(window.location);
+                    newUrl.searchParams.delete('scroll_to');
+                    window.history.replaceState({}, '', newUrl);
+                }, 100);
+            }
+        }
+    }
+    
+    // Выполняем прокрутку при загрузке страницы
+    scrollToSection();
+    
+    // Автоматическое обновление графиков при изменении параметров
+    const timeRangeSelect = document.getElementById('time_range');
+    const timeIntervalSelect = document.getElementById('time_interval');
+    
+    function updateCharts() {
+        const form = document.querySelector('.chart-form');
+        if (form) {
+            // Добавляем параметр для прокрутки к графикам
+            const url = new URL(form.action);
+            url.searchParams.set('scroll_to', 'charts-section');
+            form.action = url.toString();
+            form.submit();
+        }
+    }
+    
+    // Обновляем графики при изменении диапазона или интервала
+    if (timeRangeSelect) {
+        timeRangeSelect.addEventListener('change', updateCharts);
+    }
+    if (timeIntervalSelect) {
+        timeIntervalSelect.addEventListener('change', updateCharts);
+    }
+    
+    // Добавляем обработчики для всех форм, чтобы они сохраняли параметры прокрутки
+    document.querySelectorAll('form').forEach(form => {
+        if (form.action.includes('developer_panel')) {
+            form.addEventListener('submit', function(e) {
+                // Сохраняем текущие параметры URL
+                const currentUrl = new URL(window.location);
+                const scrollTo = currentUrl.searchParams.get('scroll_to');
+                
+                if (scrollTo) {
+                    // Добавляем скрытое поле для сохранения параметра прокрутки
+                    let hiddenInput = form.querySelector('input[name="scroll_to"]');
+                    if (!hiddenInput) {
+                        hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'scroll_to';
+                        form.appendChild(hiddenInput);
+                    }
+                    hiddenInput.value = scrollTo;
+                }
+            });
+        }
+    });
+    // Получаем данные для графиков
+    const chartData = {
+        gossips: {
+            labels: {{ chart_data.gossip_labels | tojson | safe }},
+            data: {{ chart_data.gossip_data | tojson | safe }}
+        },
+        comments: {
+            labels: {{ chart_data.comment_labels | tojson | safe }},
+            data: {{ chart_data.comment_data | tojson | safe }}
+        }
+    };
+
+    // Общие настройки для графиков
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    stepSize: 1
+                },
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                }
+            },
+            x: {
+                ticks: {
+                    color: 'rgba(255, 255, 255, 0.7)'
+                },
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                labels: {
+                    color: 'rgba(255, 255, 255, 0.9)'
+                }
+            }
+        }
+    };
+
+    // График для сплетен
+    const gossipsCtx = document.getElementById('gossipsChart');
+    if (gossipsCtx) {
+        new Chart(gossipsCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: chartData.gossips.labels,
+                datasets: [{
+                    label: 'Количество сплетен',
+                    data: chartData.gossips.data,
+                    backgroundColor: 'rgba(88, 166, 255, 0.2)',
+                    borderColor: 'rgba(88, 166, 255, 1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: chartOptions
+        });
+    }
+
+    // График для комментариев
+    const commentsCtx = document.getElementById('commentsChart');
+    if (commentsCtx) {
+        new Chart(commentsCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: chartData.comments.labels,
+                datasets: [{
+                    label: 'Количество комментариев',
+                    data: chartData.comments.data,
+                    backgroundColor: 'rgba(147, 112, 219, 0.2)',
+                    borderColor: 'rgba(147, 112, 219, 1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: chartOptions
+        });
+    }
+});
+</script>
+{% endblock %}

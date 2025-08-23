@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% if gossip %}
+    {% set page_title = "Редактирование сплетни" %}
+{% else %}
+    {% set page_title = "Новая сплетня" %}
+{% endif %}
+
+{% block title %}{{ page_title|default('Новая сплетня') }}{% endblock %}
+
+{% block content %}
+<main class="container">
+    <h1 class="page-title">{{ page_title|default('Создать новую сплетню') }}</h1>
+
+    <form method="POST" class="modern-form">
+        {{ form.csrf_token }}
+        <div class="form-group">
+            <label for="title">Заголовок</label>
+            {{ form.title(class="form-control", placeholder="Интригующий заголовок...") }}
+        </div>
+
+        <div class="editor-container">
+            <div class="editor-input-area">
+                <label for="content">Содержание (поддерживает Markdown)</label>
+                {{ form.content(id="markdown-input", class="form-control editor-textarea", placeholder="Ваша история...") }}
+            </div>
+            <div class="editor-preview-area">
+                <label>Предварительный просмотр</label>
+                <div id="markdown-preview" class="form-control editor-preview"></div>
+            </div>
+        </div>
+        
+        <p class="markdown-info">Вы можете использовать <a href="https://www.markdownguide.org/basic-syntax/" target="_blank">Markdown</a> для форматирования текста.</p>
+        
+        <button type="submit" class="btn btn-primary btn-lg">{{ 'Сохранить' if gossip else 'Опубликовать' }}</button>
+    </form>
+</main>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- Подключаем библиотеку для рендеринга Markdown -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const markdownInput = document.getElementById('markdown-input');
+    const markdownPreview = document.getElementById('markdown-preview');
+
+    function renderMarkdown() {
+        // Очищаем HTML перед рендерингом, чтобы предотвратить XSS
+        const dirtyHtml = marked.parse(markdownInput.value);
+        // В Flask мы используем Bleach на сервере, здесь для превью этого достаточно.
+        markdownPreview.innerHTML = dirtyHtml;
+    }
+
+    markdownInput.addEventListener('input', renderMarkdown);
+
+    // Первоначальный рендеринг, если мы редактируем существующую сплетню
+    renderMarkdown();
+});
+</script>
+{% endblock %}

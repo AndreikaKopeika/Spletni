@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  spletni-app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-OhhhSoYouHackedSecretKey?WellGoAheadAndBreakMyApp!@#$%^&*()_+{}|:<>?[]\;',./1234567890abcdef}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-NEW_OPENAI_API_KEY_HERE_REPLACE_THIS}
+      - DEVELOPER_PASSWORD=${DEVELOPER_PASSWORD:-admin123}
+      - DATABASE_URL=sqlite:///gossip.db
+    volumes:
+      - ./instance:/app/instance
+      - ./database_backups:/app/database_backups
+      - ./bug_reports:/app/bug_reports
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Опционально: Redis для кеширования (раскомментировать если нужно)
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped

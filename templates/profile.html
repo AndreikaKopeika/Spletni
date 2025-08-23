@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль {{ user.username }}{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="profile-header {% if user.active_decoration %}{{ user.active_decoration.css_class }}{% endif %}">
+        {% if user.active_decoration and 'flaming' in user.active_decoration.css_class %}
+            <div class="particle-container">
+                {% for i in range(1, 11) %}<span class="spark spark-{{ i }}"></span>{% endfor %}
+            </div>
+        {% endif %}
+        {% if user.active_decoration and ('verified' in user.active_decoration.css_class or 'moderator' in user.active_decoration.css_class) %}
+            <div class="particle-container">
+                {% for i in range(1, 11) %}<span class="particle particle-{{ i }}"></span>{% endfor %}
+            </div>
+        {% endif %}
+        <div class="profile-info">
+            <h1>{{ user.username }}</h1>
+            <p>Репутация: <span id="reputation-score">{{ user.reputation }}</span></p>
+            {% if user.is_verified %}
+        <div class="verified-author-notice">
+            <i class="fas fa-check-circle"></i>
+            <div>
+                <strong>Это профиль проверенного пользователя.</strong>
+                <p>Проверенные пользователи — это участники, заслужившие доверие сообщества за публикацию качественных и правдивых сплетен.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if user.is_moderator %}
+        <div class="moderator-author-notice">
+            <i class="fas fa-shield-alt"></i>
+            <div>
+                <strong>Это профиль модератора.</strong>
+                <p>Модераторы следят за порядком на сайте и помогают поддерживать дружелюбную атмосферу. Пожалуйста, относитесь к ним с уважением.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="user-badges">
+            {% if user.is_moderator %}<span class="moderator-badge">Модератор</span>{% endif %}
+            {% if user.is_verified %}<span class="verified-badge">Проверенный</span>{% endif %}
+        </div>
+
+        {% if user.description %}
+        <div class="profile-description">
+            <p>{{ user.description }}</p>
+        </div>
+        {% endif %}
+
+        <div class="reputation-container">
+            <span class="reputation-label">Репутация:</span>
+            <span class="reputation-score {% if user.reputation > 0 %}rep-positive{% elif user.reputation < 0 %}rep-negative{% endif %}">{{ user.reputation }}</span>
+            
+            {% if current_user.is_authenticated and current_user.id != user.id %}
+                <div class="reputation-actions">
+                    <form action="{{ url_for('upvote_user', username=user.username) }}" method="POST" class="inline-form">
+                        {{ form.csrf_token }}
+                        <button type="submit" class="btn-rep upvote {% if has_voted == 'upvote' %}voted{% endif %}" {% if has_voted %}disabled{% endif %} title="Повысить репутацию">
+                            <i class="fas fa-thumbs-up"></i>
+                        </button>
+                    </form>
+                    <form action="{{ url_for('downvote_user', username=user.username) }}" method="POST" class="inline-form">
+                        {{ form.csrf_token }}
+                        <button type="submit" class="btn-rep downvote {% if has_voted == 'downvote' %}voted{% endif %}" {% if has_voted %}disabled{% endif %} title="Понизить репутацию">
+                            <i class="fas fa-thumbs-down"></i>
+                        </button>
+                    </form>
+                </div>
+                {% if has_voted %}<small class="voted-text">Вы уже голосовали.</small>{% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {% if user.pinned_gossip %}
+    <section class="pinned-gossip-section">
+        <h2 class="section-title"><i class="fas fa-thumbtack"></i> Закрепленная сплетня</h2>
+        <div class="gossip-card verified-gossip">
+            <h3 class="gossip-title">{{ user.pinned_gossip.title }}</h3>
+            <p class="gossip-content-preview">{{ user.pinned_gossip.content[:200] }}...</p>
+            <div class="gossip-footer">
+                 <div class="gossip-stats">
+                    <span><i class="fas fa-heart"></i> {{ user.pinned_gossip.likes|length }}</span>
+                    <span><i class="fas fa-comment"></i> {{ user.pinned_gossip.comments|length }}</span>
+                </div>
+                <a href="{{ url_for('gossip', gossip_id=user.pinned_gossip.id) }}" class="btn btn-secondary">Читать полностью</a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+
+    <div class="user-gossips">
+        <h3 class="section-title">Сплетни пользователя</h3>
+        {% for gossip in gossips.items %}
+            <article class="gossip-card {% if gossip.author.is_verified %}verified-gossip{% endif %}">
+                <h2 class="gossip-title"><a href="{{ url_for('gossip', gossip_id=gossip.id) }}">{{ gossip.title }}</a></h2>
+
+                <div class="gossip-meta">
+                    <span class="gossip-author">
+                        <a href="{{ url_for('profile', username=gossip.author.username) }}">{{ gossip.author.username }}</a>
+                    </span>
+                    <time datetime="{{ gossip.date_posted.isoformat() }}Z">{{ gossip.date_posted.strftime('%Y-%m-%d %H:%M') }}</time>
+                </div>
+
+                <p class="gossip-content-preview">{{ gossip.content[:150] }}{% if gossip.content|length > 150 %}...{% endif %}</p>
+
+                <div class="gossip-footer">
+                    <div class="gossip-stats">
+                        <span><i class="fas fa-heart"></i> {{ gossip.likes|length }}</span>
+                        <span><i class="fas fa-comment"></i> {{ gossip.comments|length }}</span>
+                    </div>
+                    <a href="{{ url_for('gossip', gossip_id=gossip.id) }}" class="btn btn-secondary">Открыть</a>
+                </div>
+            </article>
+        {% else %}
+            <p>У этого пользователя пока нет сплетен.</p>
+        {% endfor %}
+    </div>
+
+    <!-- Пагинация -->
+    {% if gossips.pages > 1 %}
+        <nav class="pagination">
+            {% if gossips.has_prev %}
+                <a href="{{ url_for('profile', username=user.username, page=gossips.prev_num) }}" class="page-link">&laquo; Предыдущая</a>
+            {% endif %}
+            {% for page_num in gossips.iter_pages() %}
+                {% if page_num %}
+                    <a href="{{ url_for('profile', username=user.username, page=page_num) }}" class="page-link {% if page_num == gossips.page %}active{% endif %}">{{ page_num }}</a>
+                {% else %}
+                    <span class="page-link-ellipsis">...</span>
+                {% endif %}
+            {% endfor %}
+            {% if gossips.has_next %}
+                <a href="{{ url_for('profile', username=user.username, page=gossips.next_num) }}" class="page-link">Следующая &raquo;</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+</main>
+{% endblock %}

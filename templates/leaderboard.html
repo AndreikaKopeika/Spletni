@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Таблица лидеров{% endblock %}
+
+{% block content %}
+<main class="container">
+    <h1 class="page-title">Таблица лидеров</h1>
+    <p class="page-subtitle">Лучшие из лучших на "Сплетни Revamp"</p>
+
+    <div class="leaderboard-container">
+        <!-- Топ по репутации -->
+        <div class="leaderboard-card">
+            <h2><i class="fas fa-star"></i> Топ по репутации</h2>
+            <ol class="leaderboard-list">
+                {% for user in top_by_rep %}
+                <li>
+                    <span class="leaderboard-user"><a href="{{ url_for('profile', username=user.username) }}">{{ user.username }}</a></span>
+                    <span class="leaderboard-score">{{ user.reputation }}</span>
+                </li>
+                {% else %}
+                <p>Пока никто не заработал репутацию.</p>
+                {% endfor %}
+            </ol>
+        </div>
+
+        <!-- Топ по Сплетни Коинам -->
+        <div class="leaderboard-card">
+            <h2><i class="fas fa-coins"></i> Топ по Сплетни Коинам</h2>
+            <ol class="leaderboard-list">
+                {% for user in top_by_coins %}
+                <li>
+                    <span class="leaderboard-user"><a href="{{ url_for('profile', username=user.username) }}">{{ user.username }}</a></span>
+                    <span class="leaderboard-score">{{ user.gossip_coins }}</span>
+                </li>
+                {% else %}
+                <p>Пока ни у кого нет коинов.</p>
+                {% endfor %}
+            </ol>
+        </div>
+
+        <!-- Топ по лайкам -->
+        <div class="leaderboard-card">
+            <h2><i class="fas fa-heart"></i> Топ по лайкам</h2>
+            <ol class="leaderboard-list">
+                {% for user, total_likes in top_by_likes %}
+                <li>
+                    <span class="leaderboard-user"><a href="{{ url_for('profile', username=user.username) }}">{{ user.username }}</a></span>
+                    <span class="leaderboard-score">{{ total_likes }}</span>
+                </li>
+                {% else %}
+                <p>Пока никто не получил лайков.</p>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+</main>
+{% endblock %}

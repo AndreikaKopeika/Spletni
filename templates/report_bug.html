@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Сообщить об ошибке{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="form-container">
+        <h1 class="page-title">Сообщить об ошибке</h1>
+        <p class="page-subtitle">
+            Спасибо, что помогаете сделать наш проект лучше! Пожалуйста, опишите проблему как можно подробнее.
+        </p>
+        <form method="POST" enctype="multipart/form-data" class="modern-form">
+            {{ form.csrf_token }}
+            
+            <div class="form-group">
+                <label for="description">Что произошло?</label>
+                <textarea id="description" name="description" class="form-control" rows="5" required placeholder="Например: страница перестала отвечать, когда я пытался лайкнуть комментарий."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="steps">Что вы делали перед тем, как это произошло?</label>
+                <textarea id="steps" name="steps" class="form-control" rows="5" required placeholder="Например: 1. Открыл сплетню '...'. 2. Пролистал до комментариев. 3. Нажал на кнопку лайка у комментария от пользователя '...'"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="screenshot">Прикрепите скриншот (необязательно)</label>
+                <input type="file" id="screenshot" name="screenshot" class="form-control" accept="image/png, image/jpeg, image/gif">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg">Отправить отчет</button>
+        </form>
+    </div>
+</main>
+{% endblock %}

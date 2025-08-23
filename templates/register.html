@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Регистрация{% endblock %}
+{% block content %}
+    <h1>Регистрация</h1>
+    <form method="POST" id="register-form" novalidate>
+        {{ form.csrf_token }}
+        <div class="form-group">
+            <label for="username">Имя пользователя:</label>
+            <input type="text" id="username" name="username" required minlength="3" maxlength="20" pattern="^\\w+$" title="Имя пользователя может содержать только буквы, цифры и знак подчеркивания.">
+            <div id="username-validation-message" class="validation-message"></div>
+        </div>
+        
+        <div class="form-group password-group">
+            <label for="password">Пароль:</label>
+            <input type="password" id="password" name="password" required>
+            <i class="fas fa-eye" id="togglePassword"></i>
+        </div>
+        <div id="password-strength-meter">
+            <div id="password-strength-bar"></div>
+        </div>
+        <span id="password-strength-text"></span>
+
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Переключатель видимости пароля ---
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+
+    togglePassword.addEventListener('click', function () {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.classList.toggle('fa-eye-slash');
+    });
+
+    // --- Валидация имени пользователя в реальном времени ---
+    const usernameInput = document.getElementById('username');
+    const usernameValidationMessage = document.getElementById('username-validation-message');
+    const registerForm = document.getElementById('register-form');
+
+    usernameInput.addEventListener('input', function() {
+        const username = usernameInput.value;
+        let isValid = true;
+        let message = '';
+
+        if (username.length > 0) { // Начинаем проверку, только если что-то введено
+            if (username.length < 3 || username.length > 20) {
+                isValid = false;
+                message = 'Имя должно быть от 3 до 20 символов.';
+            }
+
+            const invalidChars = username.match(/[^\w]/g);
+            if (invalidChars) {
+                isValid = false;
+                // Используем Set, чтобы показать только уникальные недопустимые символы
+                const uniqueInvalidChars = [...new Set(invalidChars)].join(' ');
+                message += `\nНедопустимые символы: ${uniqueInvalidChars}`;
+            }
+        }
+
+        if (isValid) {
+            usernameInput.classList.remove('is-invalid');
+            usernameValidationMessage.textContent = '';
+            usernameValidationMessage.style.display = 'none';
+        } else {
+            usernameInput.classList.add('is-invalid');
+            usernameValidationMessage.textContent = message.trim().replace(/\n/g, '\n');
+            usernameValidationMessage.style.display = 'block';
+        }
+    });
+    
+    // --- Шкала надежности пароля (существующий код) ---
+    const strengthBar = document.getElementById('password-strength-bar');
+    const strengthText = document.getElementById('password-strength-text');
+
+    passwordInput.addEventListener('input', function() {
+        const password = passwordInput.value;
+        let strength = 0;
+        let text = '';
+        let color = '';
+
+        if (password.length >= 8) strength++;
+        if (password.match(/[a-z]/)) strength++;
+        if (password.match(/[A-Z]/)) strength++;
+        if (password.match(/[0-9]/)) strength++;
+        if (password.match(/[^a-zA-Z0-9]/)) strength++;
+
+        let barWidth = (strength / 5) * 100;
+
+        switch(strength) {
+            case 0:
+            case 1:
+                text = 'Очень слабый';
+                color = '#f85149';
+                break;
+            case 2:
+                text = 'Слабый';
+                color = '#f85149';
+                break;
+            case 3:
+                text = 'Средний';
+                color = '#ffc107';
+                break;
+            case 4:
+                text = 'Хороший';
+                color = '#58a6ff';
+                break;
+            case 5:
+                text = 'Отличный';
+                color = '#2ea043';
+                break;
+        }
+
+        if (password.length === 0) {
+            barWidth = 0;
+            text = '';
+        }
+
+        strengthBar.style.width = barWidth + '%';
+        strengthBar.style.backgroundColor = color;
+        strengthText.textContent = text;
+        strengthText.style.color = color;
+    });
+});
+</script>
+{% endblock %}

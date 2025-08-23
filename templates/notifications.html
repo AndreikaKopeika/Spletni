@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Уведомления{% endblock %}
+{% block content %}
+    <div class="notifications-page">
+        <div class="container-gossip">
+            <h1 class="page-title">Ваши уведомления</h1>
+
+            {% if notifications.items %}
+                <div class="notification-actions-header">
+                    <form method="POST" action="{{ url_for('delete_all_notifications') }}" onsubmit="return confirm('Вы уверены, что хотите удалить все уведомления?');">
+                        {{ form.hidden_tag() }}
+                        <button type="submit" class="btn btn-danger">Удалить все</button>
+                    </form>
+                </div>
+                <div class="notifications-list">
+                    {% for notification in notifications.items %}
+                        <div class="notification-card {% if not notification.is_read %}notification-unread{% endif %}">
+                            <div class="notification-content">
+                                <p class="notification-message">{{ notification.message }}</p>
+                                <small class="notification-timestamp text-muted">
+                                    {{ notification.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
+                            </div>
+                            <div class="notification-actions">
+                                {% if not notification.is_read %}
+                                    <a href="{{ url_for('read_notification', notification_id=notification.id) }}" class="btn btn-secondary btn-sm">Прочитано</a>
+                                {% endif %}
+                                <form action="{{ url_for('delete_notification', notification_id=notification.id) }}" method="POST" class="inline-form">
+                                    {{ form.csrf_token }}
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Удалить уведомление"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <p>У вас пока нет уведомлений.</p>
+                    <i class="far fa-bell-slash"></i>
+                </div>
+            {% endif %}
+
+            <!-- Пагинация -->
+            {% if notifications.pages > 1 %}
+                <nav class="pagination">
+                    {% if notifications.has_prev %}
+                        <a href="{{ url_for('notifications', page=notifications.prev_num) }}" class="page-link">&laquo; Предыдущая</a>
+                    {% endif %}
+                    {% for page_num in notifications.iter_pages() %}
+                        {% if page_num %}
+                            <a href="{{ url_for('notifications', page=page_num) }}" class="page-link {% if page_num == notifications.page %}active{% endif %}">{{ page_num }}</a>
+                        {% else %}
+                            <span class="page-link-ellipsis">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    {% if notifications.has_next %}
+                        <a href="{{ url_for('notifications', page=notifications.next_num) }}" class="page-link">Следующая &raquo;</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+
+        </div>
+    </div>
+{% endblock %}
