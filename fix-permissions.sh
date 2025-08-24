@@ -15,7 +15,7 @@ sudo chmod -R 755 instance database_backups bug_reports
 if [ -f "instance/gossip.db" ]; then
     echo "🗄️ Исправляем права на существующую базу данных..."
     sudo chown 1000:1000 instance/gossip.db
-    sudo chmod 644 instance/gossip.db
+    sudo chmod 666 instance/gossip.db
 fi
 
 # Пересобираем образ с новыми правами
