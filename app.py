@@ -72,7 +72,15 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 csrf = CSRFProtect(app) # Инициализировал CSRFProtect
-socketio = SocketIO(app) # Инициализировал SocketIO
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    ping_timeout=60,
+    ping_interval=25,
+    max_http_buffer_size=1e6,
+    logger=True,
+    engineio_logger=True
+) # Инициализировал SocketIO с улучшенными настройками
 
 limiter = Limiter( # Инициализируем Limiter
     get_remote_address,
@@ -1894,22 +1902,41 @@ def report_bug():
 
 @socketio.on('connect')
 def handle_connect():
-    if current_user.is_authenticated:
-        join_room(str(current_user.id))
-        print(f'Client {current_user.username} connected and joined room {current_user.id}')
+    try:
+        if current_user.is_authenticated:
+            join_room(str(current_user.id))
+            print(f'Client {current_user.username} connected and joined room {current_user.id}')
+        else:
+            print('Anonymous client connected')
+    except Exception as e:
+        print(f'Error in handle_connect: {e}')
 
 @socketio.on('request_unread_count')
 @login_required
 def request_unread_count():
-    unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
-    emit('unread_count_update', {'count': unread_count}, room=str(current_user.id))
-    return {'status': 'success'} # <-- Добавим эту строку
+    try:
+        unread_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+        emit('unread_count_update', {'count': unread_count}, room=str(current_user.id))
+        return {'status': 'success'}
+    except Exception as e:
+        print(f'Error in request_unread_count: {e}')
+        return {'status': 'error', 'message': str(e)}
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    if current_user.is_authenticated:
-        leave_room(str(current_user.id))
-        print(f'Client {current_user.username} disconnected from room {current_user.id}')
+    try:
+        if current_user.is_authenticated:
+            leave_room(str(current_user.id))
+            print(f'Client {current_user.username} disconnected from room {current_user.id}')
+        else:
+            print('Anonymous client disconnected')
+    except Exception as e:
+        print(f'Error in handle_disconnect: {e}')
+
+@socketio.on_error()
+def error_handler(e):
+    print(f'SocketIO error: {e}')
+    return False
 
 @app.route("/developer_panel/bots", methods=['GET', 'POST'])
 @login_required

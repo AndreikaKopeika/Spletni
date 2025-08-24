@@ -95,7 +95,13 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // --- Socket.IO ---
-        const socket = io();
+        const socket = io({
+            timeout: 60000,
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000
+        });
 
         socket.on('connect', function() {
             console.log('Connected to WebSocket');
@@ -104,8 +110,23 @@
             }
         });
 
-        socket.on('disconnect', function() {
-            console.log('Disconnected from WebSocket');
+        socket.on('disconnect', function(reason) {
+            console.log('Disconnected from WebSocket:', reason);
+        });
+
+        socket.on('connect_error', function(error) {
+            console.log('Connection error:', error);
+        });
+
+        socket.on('reconnect', function(attemptNumber) {
+            console.log('Reconnected after', attemptNumber, 'attempts');
+            if (window.isAuthenticated) {
+                socket.emit('request_unread_count');
+            }
+        });
+
+        socket.on('reconnect_error', function(error) {
+            console.log('Reconnection error:', error);
         });
 
         // --- Push-уведомления ---
@@ -130,14 +151,18 @@
         });
 
         socket.on('unread_count_update', function(data) {
-            const count = data.count;
-            const countElement = document.getElementById('notification-count-nav');
-            const alertIcon = document.getElementById('notification-alert-icon');
-            if (countElement && alertIcon) {
-                countElement.textContent = count;
-                const display = count > 0 ? 'inline-block' : 'none';
-                countElement.style.display = display;
-                alertIcon.style.display = display;
+            try {
+                const count = data.count;
+                const countElement = document.getElementById('notification-count-nav');
+                const alertIcon = document.getElementById('notification-alert-icon');
+                if (countElement && alertIcon) {
+                    countElement.textContent = count;
+                    const display = count > 0 ? 'inline-block' : 'none';
+                    countElement.style.display = display;
+                    alertIcon.style.display = display;
+                }
+            } catch (error) {
+                console.error('Error updating notification count:', error);
             }
         });
 
