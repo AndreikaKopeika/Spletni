@@ -91,6 +91,39 @@
                             <i class="fas fa-coins coin-icon"></i>
                             <span>{{ current_user.gossip_coins }}</span>
                         </a>
+                        <!-- Кнопка мобильного меню -->
+                        <div class="mobile-menu-dropdown">
+                            <button class="mobile-menu-btn" id="mobile-menu-btn">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                            <div class="mobile-menu-content" id="mobile-menu-content">
+                                <a href="{{ url_for('edit_profile') }}" class="mobile-menu-item">
+                                    <i class="fas fa-user-edit"></i>
+                                    <span>Редактировать профиль</span>
+                                </a>
+                                <a href="{{ url_for('customize_profile') }}" class="mobile-menu-item">
+                                    <i class="fas fa-palette"></i>
+                                    <span>Кастомизация</span>
+                                </a>
+                                <a href="{{ url_for('notification_settings') }}" class="mobile-menu-item">
+                                    <i class="fas fa-cog"></i>
+                                    <span>Настройки</span>
+                                </a>
+                                <a href="{{ url_for('quests') }}" class="mobile-menu-item">
+                                    <i class="fas fa-tasks"></i>
+                                    <span>Квесты</span>
+                                </a>
+                                <a href="{{ url_for('shop') }}" class="mobile-menu-item">
+                                    <i class="fas fa-store"></i>
+                                    <span>Магазин</span>
+                                </a>
+                                <div class="mobile-menu-divider"></div>
+                                <a href="{{ url_for('logout') }}" class="mobile-menu-item mobile-menu-logout">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    <span>Выйти</span>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 {% endif %}
@@ -270,6 +303,11 @@
                 mobileNavPanel.style.marginBottom = '0';
                 mobileNavPanel.style.paddingBottom = '8px';
                 mobileNavPanel.style.display = 'block';
+                mobileNavPanel.style.width = '100vw';
+                mobileNavPanel.style.maxWidth = '100vw';
+                mobileNavPanel.style.height = 'auto';
+                mobileNavPanel.style.minHeight = '76px';
+                mobileNavPanel.style.margin = '0';
             }
         }
         
@@ -303,6 +341,28 @@
             }
         }, 1000);
         
+        // Дополнительная проверка для главной страницы
+        setTimeout(function() {
+            if (window.innerWidth <= 768 && window.location.pathname === '/') {
+                const mobileNavPanel = document.querySelector('.mobile-nav-panel');
+                if (mobileNavPanel) {
+                    mobileNavPanel.style.position = 'fixed';
+                    mobileNavPanel.style.bottom = '0';
+                    mobileNavPanel.style.left = '0';
+                    mobileNavPanel.style.right = '0';
+                    mobileNavPanel.style.top = 'auto';
+                    mobileNavPanel.style.zIndex = '9999';
+                    mobileNavPanel.style.display = 'block';
+                    mobileNavPanel.style.width = '100vw';
+                    mobileNavPanel.style.maxWidth = '100vw';
+                    mobileNavPanel.style.overflow = 'visible';
+                    mobileNavPanel.style.transform = 'none';
+                    mobileNavPanel.style.margin = '0';
+                    mobileNavPanel.style.paddingBottom = '8px';
+                }
+            }
+        }, 2000);
+        
         // Обработчик изменения размера окна
         window.addEventListener('resize', function() {
             if (window.innerWidth <= 768) {
@@ -310,6 +370,38 @@
                 ensureMobilePanelVisible();
             }
         });
+        
+        // --- Мобильное меню ---
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenuContent = document.getElementById('mobile-menu-content');
+        
+        if (mobileMenuBtn && mobileMenuContent) {
+            // Открытие/закрытие меню по клику на кнопку
+            mobileMenuBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                mobileMenuContent.classList.toggle('show');
+            });
+            
+            // Закрытие меню при клике вне его
+            document.addEventListener('click', function(e) {
+                if (!mobileMenuBtn.contains(e.target) && !mobileMenuContent.contains(e.target)) {
+                    mobileMenuContent.classList.remove('show');
+                }
+            });
+            
+            // Закрытие меню при клике на пункт меню
+            const menuItems = mobileMenuContent.querySelectorAll('.mobile-menu-item');
+            menuItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    mobileMenuContent.classList.remove('show');
+                });
+            });
+            
+            // Закрытие меню при скролле
+            window.addEventListener('scroll', function() {
+                mobileMenuContent.classList.remove('show');
+            });
+        }
     });
     </script>
     {% block scripts %}
