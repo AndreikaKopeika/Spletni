@@ -1521,25 +1521,17 @@ def enhance_gossip_ai(gossip_id):
 Верни только улучшенный текст в формате Markdown, без дополнительных пояснений."""
 
         # Вызываем OpenAI API с таймаутом
-        import requests
-        from requests.adapters import HTTPAdapter
-        from urllib3.util.retry import Retry
+        import httpx
         
-        # Настраиваем сессию с таймаутами и повторными попытками
-        session = requests.Session()
-        retry_strategy = Retry(
-            total=3,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
+        # Настраиваем HTTP клиент с таймаутами и повторными попытками
+        http_client = httpx.Client(
+            timeout=httpx.Timeout(30.0),  # 30 секунд таймаут
+            limits=httpx.Limits(max_retries=3)
         )
-        adapter = HTTPAdapter(max_retries=retry_strategy)
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
         
         client = OpenAI(
             api_key=app.config['OPENAI_API_KEY'],
-            http_client=session,
-            timeout=30.0  # 30 секунд таймаут
+            http_client=http_client
         )
         
         response = client.chat.completions.create(
