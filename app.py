@@ -1534,6 +1534,18 @@ def enhance_gossip_ai(gossip_id):
             print(f"[AI-ENHANCE-ERROR] Проблема с DNS-резолвингом: {dns_error}")
             return jsonify({'status': 'error', 'message': 'Проблема с сетевым подключением. Проверьте DNS и интернет-соединение.'}), 408
         
+        # Тестируем работу клиента на простом запросе
+        try:
+            print(f"[AI-ENHANCE] Тестируем OpenAI клиент...")
+            test_response = client.responses.create(
+                model="gpt-4o-mini",
+                input="Привет"
+            )
+            print(f"[AI-ENHANCE] Тест OpenAI клиента успешен")
+        except Exception as test_error:
+            print(f"[AI-ENHANCE-ERROR] Тест OpenAI клиента провален: {type(test_error).__name__}: {str(test_error)}")
+            return jsonify({'status': 'error', 'message': f'Проблема с OpenAI API: {str(test_error)}'}), 500
+        
         # Используем существующий API для улучшения сплетни
         print(f"[AI-ENHANCE] Отправляем запрос к OpenAI API для улучшения сплетни {gossip.id}")
         try:
@@ -1627,6 +1639,29 @@ def enhance_gossip_ai(gossip_id):
         
         else:
             return jsonify({'status': 'error', 'message': f'Ошибка при улучшении сплетни: {str(e)}'}), 500
+
+@app.route("/test_ai", methods=['GET'])
+@login_required
+def test_ai():
+    """Тестовый роут для проверки работы AI"""
+    if not session.get('developer_logged_in'):
+        return jsonify({'status': 'error', 'message': 'Недостаточно прав'}), 403
+    
+    try:
+        print(f"[AI-TEST] Тестируем генерацию AI сплетни...")
+        title, content = generate_ai_gossip()
+        if title and content:
+            return jsonify({
+                'status': 'success',
+                'message': 'AI работает нормально',
+                'title': title,
+                'content': content[:100] + '...' if len(content) > 100 else content
+            })
+        else:
+            return jsonify({'status': 'error', 'message': 'AI вернул пустой результат'}), 500
+    except Exception as e:
+        print(f"[AI-TEST-ERROR] Ошибка тестирования AI: {e}")
+        return jsonify({'status': 'error', 'message': f'Ошибка AI: {str(e)}'}), 500
 
 @app.route("/gossip/<int:gossip_id>/comment", methods=['POST'])
 @login_required
