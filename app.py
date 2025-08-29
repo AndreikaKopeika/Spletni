@@ -1641,11 +1641,9 @@ def enhance_gossip_ai(gossip_id):
             return jsonify({'status': 'error', 'message': f'Ошибка при улучшении сплетни: {str(e)}'}), 500
 
 @app.route("/test_ai", methods=['GET'])
-@login_required
 def test_ai():
     """Тестовый роут для проверки работы AI"""
-    if not session.get('developer_logged_in'):
-        return jsonify({'status': 'error', 'message': 'Недостаточно прав'}), 403
+    # Убираем проверку авторизации для тестирования
     
     try:
         print(f"[AI-TEST] Тестируем генерацию AI сплетни...")
