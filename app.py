@@ -1525,78 +1525,27 @@ def enhance_gossip_ai(gossip_id):
             print(f"[AI-ENHANCE-ERROR] OpenAI клиент не инициализирован")
             return jsonify({'status': 'error', 'message': 'OpenAI API не настроен. Обратитесь к администратору.'}), 500
         
-        # Проверяем DNS-резолвинг
-        try:
-            import socket
-            socket.gethostbyname('api.openai.com')
-            print(f"[AI-ENHANCE] DNS-резолвинг успешен")
-        except Exception as dns_error:
-            print(f"[AI-ENHANCE-ERROR] Проблема с DNS-резолвингом: {dns_error}")
-            return jsonify({'status': 'error', 'message': 'Проблема с сетевым подключением. Проверьте DNS и интернет-соединение.'}), 408
+        # Убираем DNS-проверку, так как боты работают без неё
         
-        # Тестируем работу клиента на простом запросе
-        try:
-            print(f"[AI-ENHANCE] Тестируем OpenAI клиент...")
-            test_response = client.responses.create(
-                model="gpt-4o-mini",
-                input="Привет"
-            )
-            print(f"[AI-ENHANCE] Тест OpenAI клиента успешен")
-        except Exception as test_error:
-            print(f"[AI-ENHANCE-ERROR] Тест OpenAI клиента провален: {type(test_error).__name__}: {str(test_error)}")
-            return jsonify({'status': 'error', 'message': f'Проблема с OpenAI API: {str(test_error)}'}), 500
+        # Запускаем улучшение в фоновом потоке, как боты
+        print(f"[AI-ENHANCE] Запускаем фоновое улучшение сплетни {gossip.id}")
         
-        # Используем существующий API для улучшения сплетни
-        print(f"[AI-ENHANCE] Отправляем запрос к OpenAI API для улучшения сплетни {gossip.id}")
-        try:
-            response = client.responses.create(
-                model="gpt-4o-mini",
-                input=prompt
-            )
-        except Exception as api_error:
-            print(f"[AI-ENHANCE-ERROR] Ошибка при вызове OpenAI API: {type(api_error).__name__}: {str(api_error)}")
-            raise api_error
-        
-        enhanced_content = response.output_text.strip()
-        print(f"[AI-ENHANCE] Получен ответ от OpenAI API, длина: {len(enhanced_content)} символов")
-        
-        # Проверяем, что контент не пустой и не слишком длинный
-        if not enhanced_content:
-            print(f"[AI-ENHANCE-ERROR] Получен пустой ответ от OpenAI API")
-            return jsonify({'status': 'error', 'message': 'Получен пустой ответ от AI. Попробуйте еще раз'}), 500
-        
-        if len(enhanced_content) > 10000:
-            print(f"[AI-ENHANCE-ERROR] Ответ слишком длинный: {len(enhanced_content)} символов")
-            return jsonify({'status': 'error', 'message': 'Ответ AI слишком длинный. Попробуйте еще раз'}), 500
-        
-        # Очищаем HTML теги из улучшенного контента
-        enhanced_content = bleach.clean(enhanced_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
-        
-        # Обновляем сплетню
-        gossip.content = enhanced_content
-        gossip.is_ai_enhanced = True
-        gossip.ai_enhanced_at = datetime.utcnow()
-        
-        # Списываем коины
+        # Списываем коины сразу
         current_user.gossip_coins -= 100
-        
-        # Создаем транзакцию для отслеживания (без получателя, так как это системная операция)
-        # Просто списываем коины без создания транзакции, так как это внутренняя операция
         db.session.commit()
         
-        # Небольшая задержка для избежания блокировки базы данных
-        import time
-        time.sleep(0.5)
-        
-        # Конвертируем Markdown в HTML для отображения
-        raw_html = markdown(enhanced_content, extensions=['fenced_code', 'tables'])
-        gossip_content_html = bleach.clean(raw_html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
+        # Запускаем фоновую задачу
+        import threading
+        thread = threading.Thread(
+            target=enhance_gossip_background, 
+            args=(gossip.id, current_user.id),
+            daemon=True
+        )
+        thread.start()
         
         return jsonify({
             'status': 'success',
-            'message': 'Сплетня успешно улучшена с помощью AI!',
-            'enhanced_content': enhanced_content,
-            'enhanced_content_html': gossip_content_html,
+            'message': 'Улучшение сплетни запущено в фоновом режиме. Обновите страницу через несколько секунд.',
             'remaining_coins': current_user.gossip_coins
         })
         
@@ -3395,6 +3344,89 @@ def get_smart_gossip_targets():
                 priority_targets.append(gossip)
     
     return priority_targets
+
+def enhance_gossip_background(gossip_id, user_id):
+    """Фоновая функция для улучшения сплетни с помощью AI"""
+    with app.app_context():
+        try:
+            print(f"[AI-ENHANCE-BG] Начинаем фоновое улучшение сплетни {gossip_id}")
+            
+            # Получаем сплетню и пользователя
+            gossip = Gossip.query.get(gossip_id)
+            user = User.query.get(user_id)
+            
+            if not gossip or not user:
+                print(f"[AI-ENHANCE-BG] Сплетня или пользователь не найдены")
+                return
+            
+            if gossip.user_id != user_id:
+                print(f"[AI-ENHANCE-BG] Пользователь не является автором сплетни")
+                return
+            
+            if gossip.is_ai_enhanced:
+                print(f"[AI-ENHANCE-BG] Сплетня уже улучшена")
+                return
+            
+            if user.gossip_coins < 100:
+                print(f"[AI-ENHANCE-BG] Недостаточно коинов у пользователя")
+                return
+            
+            # Создаем промпт для улучшения сплетни
+            prompt = f"""Улучши и отформатируй следующую сплетню, используя Markdown:
+
+Заголовок: {gossip.title}
+
+Содержание: {gossip.content}
+
+Правила улучшения:
+1. Сохрани основную суть и смысл сплетни
+2. Улучши стиль написания, сделай текст более читаемым и увлекательным
+3. Добавь подходящие Markdown элементы: заголовки, списки, выделения, цитаты
+4. Структурируй текст для лучшего восприятия
+5. Не добавляй ложную информацию или домыслы
+6. Сохрани оригинальный тон и стиль автора
+7. Используй эмодзи для украшения, но умеренно
+
+Верни только улучшенный текст в формате Markdown, без дополнительных пояснений."""
+
+            # Используем тот же подход, что и боты
+            print(f"[AI-ENHANCE-BG] Отправляем запрос к OpenAI API")
+            response = client.responses.create(
+                model="gpt-4o-mini",
+                input=prompt
+            )
+            
+            enhanced_content = response.output_text.strip()
+            print(f"[AI-ENHANCE-BG] Получен ответ от OpenAI API, длина: {len(enhanced_content)} символов")
+            
+            # Проверяем, что контент не пустой
+            if not enhanced_content:
+                print(f"[AI-ENHANCE-BG] Получен пустой ответ от OpenAI API")
+                return
+            
+            if len(enhanced_content) > 10000:
+                print(f"[AI-ENHANCE-BG] Ответ слишком длинный: {len(enhanced_content)} символов")
+                return
+            
+            # Очищаем HTML теги из улучшенного контента
+            enhanced_content = bleach.clean(enhanced_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
+            
+            # Обновляем сплетню
+            gossip.content = enhanced_content
+            gossip.is_ai_enhanced = True
+            gossip.ai_enhanced_at = datetime.utcnow()
+            
+            # Списываем коины
+            user.gossip_coins -= 100
+            
+            # Сохраняем изменения
+            db.session.commit()
+            
+            print(f"[AI-ENHANCE-BG] Сплетня {gossip_id} успешно улучшена пользователем {user.username}")
+            
+        except Exception as e:
+            print(f"[AI-ENHANCE-BG-ERROR] Ошибка при фоновом улучшении сплетни {gossip_id}: {e}")
+            db.session.rollback()
 
 def trigger_bot_actions(bots_to_activate):
     """Умная логика действий для указанного списка ботов."""

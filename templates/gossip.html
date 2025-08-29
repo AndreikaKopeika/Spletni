@@ -292,20 +292,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
-                // Обновляем содержимое сплетни
-                const gossipContent = document.querySelector('.gossip-content-full');
-                gossipContent.innerHTML = data.enhanced_content_html;
-                
-                // Скрываем кнопку улучшения
-                enhanceBtn.style.display = 'none';
-                
-                // Добавляем бейдж об улучшении
-                const actionsDiv = document.querySelector('.gossip-actions');
-                const aiBadge = document.createElement('div');
-                aiBadge.className = 'ai-enhanced-badge';
-                aiBadge.innerHTML = '<i class="fas fa-robot"></i> Улучшено с помощью AI';
-                actionsDiv.appendChild(aiBadge);
-                
                 // Показываем уведомление об успехе
                 showNotification(data.message, 'success');
                 
@@ -314,6 +300,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (coinsElement) {
                     coinsElement.textContent = data.remaining_coins;
                 }
+                
+                // Скрываем кнопку улучшения
+                enhanceBtn.style.display = 'none';
+                
+                // Показываем сообщение о том, что нужно обновить страницу
+                const actionsDiv = document.querySelector('.gossip-actions');
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'ai-enhance-status';
+                statusDiv.innerHTML = '<i class="fas fa-clock"></i> Улучшение в процессе... Обновите страницу через несколько секунд.';
+                actionsDiv.appendChild(statusDiv);
+                
+                // Автоматически обновляем страницу через 10 секунд
+                setTimeout(() => {
+                    window.location.reload();
+                }, 10000);
             } else {
                 showNotification(data.message, 'error');
                 // Восстанавливаем кнопку
@@ -436,6 +437,26 @@ document.addEventListener('DOMContentLoaded', function() {
 .ai-enhanced-badge small {
     opacity: 0.8;
     font-size: 0.8em;
+}
+
+.ai-enhance-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    background: linear-gradient(45deg, #ffa726, #ff9800);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: 500;
+    box-shadow: 0 2px 10px rgba(255, 167, 38, 0.3);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
 }
 </style>
 {% endblock %}
