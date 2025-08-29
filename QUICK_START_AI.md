@@ -24,9 +24,18 @@ python setup_openai_env.py
 ```
 
 ### 4. Запуск приложения
+
+#### Локально:
 ```bash
 python app.py
 ```
+
+#### В Docker:
+```bash
+docker compose up -d
+```
+
+**Примечание**: Docker автоматически запустит `update_database.py` перед стартом приложения.
 
 ## Как использовать
 
