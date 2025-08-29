@@ -77,8 +77,6 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     }
 }
 db = SQLAlchemy(app)
-# Отключаем autoflush для избежания блокировок
-db.session.autoflush = False
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -798,6 +796,10 @@ class CoinTransaction(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Отключаем autoflush для избежания блокировок
+with app.app_context():
+    db.session.autoflush = False
 
 # Разрешенные теги и атрибуты для Bleach
 ALLOWED_TAGS = ['p', 'h1', 'h2', 'h3', 'strong', 'em', 'blockquote', 'ul', 'ol', 'li', 'pre', 'code', 'br', 'a', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td']
