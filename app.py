@@ -1496,6 +1496,11 @@ def enhance_gossip_ai(gossip_id):
     if not app.config.get('OPENAI_API_KEY') or app.config['OPENAI_API_KEY'] == 'NEW_OPENAI_API_KEY_HERE_REPLACE_THIS':
         return jsonify({'status': 'error', 'message': 'OpenAI API не настроен. Обратитесь к администратору.'}), 500
     
+    # Проверяем формат API ключа
+    api_key = app.config['OPENAI_API_KEY']
+    if not api_key.startswith('sk-'):
+        return jsonify({'status': 'error', 'message': 'Неверный формат API ключа OpenAI.'}), 500
+    
     try:
         # Создаем промпт для улучшения сплетни
         prompt = f"""Улучши и отформатируй следующую сплетню, используя Markdown:
@@ -1515,8 +1520,28 @@ def enhance_gossip_ai(gossip_id):
 
 Верни только улучшенный текст в формате Markdown, без дополнительных пояснений."""
 
-        # Вызываем OpenAI API
-        client = OpenAI(api_key=app.config['OPENAI_API_KEY'])
+        # Вызываем OpenAI API с таймаутом
+        import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        
+        # Настраиваем сессию с таймаутами и повторными попытками
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        client = OpenAI(
+            api_key=app.config['OPENAI_API_KEY'],
+            http_client=session,
+            timeout=30.0  # 30 секунд таймаут
+        )
+        
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -1524,7 +1549,8 @@ def enhance_gossip_ai(gossip_id):
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2000,
-            temperature=0.7
+            temperature=0.7,
+            timeout=25  # 25 секунд таймаут для запроса
         )
         
         enhanced_content = response.choices[0].message.content.strip()
@@ -1566,8 +1592,11 @@ def enhance_gossip_ai(gossip_id):
         
     except Exception as e:
         db.session.rollback()
-        # Если база заблокирована, попробуем еще раз через небольшую задержку
-        if "database is locked" in str(e):
+        
+        # Определяем тип ошибки и возвращаем понятное сообщение
+        error_message = str(e).lower()
+        
+        if "database is locked" in error_message:
             import time
             time.sleep(1)
             try:
@@ -1575,7 +1604,21 @@ def enhance_gossip_ai(gossip_id):
                 return jsonify({'status': 'error', 'message': 'База данных временно недоступна. Попробуйте еще раз через несколько секунд.'}), 503
             except:
                 return jsonify({'status': 'error', 'message': 'База данных заблокирована. Попробуйте позже.'}), 503
-        return jsonify({'status': 'error', 'message': f'Ошибка при улучшении сплетни: {str(e)}'}), 500
+        
+        elif "timeout" in error_message or "connection" in error_message:
+            return jsonify({'status': 'error', 'message': 'Превышено время ожидания ответа от AI. Попробуйте еще раз.'}), 408
+        
+        elif "authentication" in error_message or "invalid api key" in error_message:
+            return jsonify({'status': 'error', 'message': 'Ошибка аутентификации OpenAI API. Обратитесь к администратору.'}), 401
+        
+        elif "rate limit" in error_message or "quota" in error_message:
+            return jsonify({'status': 'error', 'message': 'Превышен лимит запросов к AI. Попробуйте позже.'}), 429
+        
+        elif "insufficient_quota" in error_message:
+            return jsonify({'status': 'error', 'message': 'Закончились средства на счете OpenAI. Обратитесь к администратору.'}), 402
+        
+        else:
+            return jsonify({'status': 'error', 'message': f'Ошибка при улучшении сплетни: {str(e)}'}), 500
 
 @app.route("/gossip/<int:gossip_id>/comment", methods=['POST'])
 @login_required
@@ -2320,8 +2363,8 @@ def bot_management_panel():
                     if random.random() < 0.7:
                         new_bot.description = random.choice(BOT_BIOS)
                     
-                    # С шансом 25% даем боту случайное простое украшение
-                    if simple_decorations and random.random() < 0.25:
+                    # С шансом 2.5% даем боту случайное простое украшение (было 25%)
+                    if simple_decorations and random.random() < 0.025:
                         deco = random.choice(simple_decorations)
                         new_bot.decorations.append(deco)
                         # И с шансом 50% делаем его активным
@@ -3328,8 +3371,8 @@ def trigger_bot_actions(bots_to_activate):
                 # Получаем умные цели для взаимодействия
                 smart_targets = get_smart_gossip_targets()
                 
-                # 30% шанс что бот создает AI контент (повышенная частота)
-                if random.random() < 0.3 and client:
+                # 70% шанс что бот создает AI контент (высокая частота)
+                if random.random() < 0.7 and client:
                     ai_action = random.choice(['ai_gossip', 'ai_comment'])
                     
                     if ai_action == 'ai_gossip':
@@ -3549,14 +3592,15 @@ def run_bot_activity():
                 ).count()
                 
                 # Адаптивная активность: больше ботов при наличии свежих сплетен
-                base_sleep = random.randint(180, 480)
+                # УВЕЛИЧИВАЕМ время ожидания в 10 раз для снижения активности
+                base_sleep = random.randint(1800, 4800)  # Было 180-480, стало 1800-4800 (30-80 минут)
                 if very_recent_gossips > 0:
                     # Если есть очень свежие сплетни (до 10 минут), уменьшаем время ожидания
-                    sleep_duration = max(60, base_sleep // 2)  # Минимум 1 минута
+                    sleep_duration = max(600, base_sleep // 2)  # Минимум 10 минут (было 1 минута)
                     print(f"[BOT-FRESH] Обнаружено {very_recent_gossips} очень свежих сплетен, ускоряем активность ботов")
                 elif fresh_gossips > 2:
                     # Если есть несколько свежих сплетен (до 1 часа), немного ускоряем
-                    sleep_duration = max(120, base_sleep * 3 // 4)  # Минимум 2 минуты
+                    sleep_duration = max(1200, base_sleep * 3 // 4)  # Минимум 20 минут (было 2 минуты)
                     print(f"[BOT-FRESH] Обнаружено {fresh_gossips} свежих сплетен, умеренно ускоряем активность")
                 else:
                     sleep_duration = base_sleep

@@ -323,7 +323,16 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error:', error);
-            showNotification('Произошла ошибка при улучшении сплетни', 'error');
+            let errorMessage = 'Произошла ошибка при улучшении сплетни';
+            
+            // Пытаемся получить более подробную информацию об ошибке
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                errorMessage = 'Ошибка подключения к серверу. Проверьте интернет-соединение.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            showNotification(errorMessage, 'error');
             // Восстанавливаем кнопку
             enhanceBtn.innerHTML = originalText;
             enhanceBtn.disabled = false;
