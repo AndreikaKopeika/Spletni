@@ -1520,30 +1520,13 @@ def enhance_gossip_ai(gossip_id):
 
 Верни только улучшенный текст в формате Markdown, без дополнительных пояснений."""
 
-        # Вызываем OpenAI API с таймаутом
-        import httpx
-        
-        # Настраиваем HTTP клиент с таймаутами
-        http_client = httpx.Client(
-            timeout=httpx.Timeout(30.0)  # 30 секунд таймаут
-        )
-        
-        client = OpenAI(
-            api_key=app.config['OPENAI_API_KEY'],
-            http_client=http_client
-        )
-        
-        response = client.chat.completions.create(
+        # Используем существующий API для улучшения сплетни
+        response = client.responses.create(
             model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Ты помощник для улучшения текстов сплетен. Твоя задача - улучшить стиль и форматирование, сохранив суть и правдивость."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=2000,
-            temperature=0.7
+            input=prompt
         )
         
-        enhanced_content = response.choices[0].message.content.strip()
+        enhanced_content = response.output_text
         
         # Проверяем, что контент не пустой и не слишком длинный
         if not enhanced_content or len(enhanced_content) > 10000:
