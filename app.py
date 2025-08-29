@@ -1521,16 +1521,23 @@ def enhance_gossip_ai(gossip_id):
 Верни только улучшенный текст в формате Markdown, без дополнительных пояснений."""
 
         # Используем существующий API для улучшения сплетни
+        print(f"[AI-ENHANCE] Отправляем запрос к OpenAI API для улучшения сплетни {gossip.id}")
         response = client.responses.create(
             model="gpt-4o-mini",
             input=prompt
         )
         
-        enhanced_content = response.output_text
+        enhanced_content = response.output_text.strip()
+        print(f"[AI-ENHANCE] Получен ответ от OpenAI API, длина: {len(enhanced_content)} символов")
         
         # Проверяем, что контент не пустой и не слишком длинный
-        if not enhanced_content or len(enhanced_content) > 10000:
-            return jsonify({'status': 'error', 'message': 'Ошибка при улучшении сплетни. Попробуйте еще раз'}), 500
+        if not enhanced_content:
+            print(f"[AI-ENHANCE-ERROR] Получен пустой ответ от OpenAI API")
+            return jsonify({'status': 'error', 'message': 'Получен пустой ответ от AI. Попробуйте еще раз'}), 500
+        
+        if len(enhanced_content) > 10000:
+            print(f"[AI-ENHANCE-ERROR] Ответ слишком длинный: {len(enhanced_content)} символов")
+            return jsonify({'status': 'error', 'message': 'Ответ AI слишком длинный. Попробуйте еще раз'}), 500
         
         # Очищаем HTML теги из улучшенного контента
         enhanced_content = bleach.clean(enhanced_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
@@ -1565,6 +1572,15 @@ def enhance_gossip_ai(gossip_id):
         
     except Exception as e:
         db.session.rollback()
+        
+        # Подробное логирование ошибки
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"[AI-ENHANCE-ERROR] Ошибка при улучшении сплетни {gossip.id}:")
+        print(f"[AI-ENHANCE-ERROR] Тип ошибки: {type(e).__name__}")
+        print(f"[AI-ENHANCE-ERROR] Сообщение: {str(e)}")
+        print(f"[AI-ENHANCE-ERROR] Полный traceback:")
+        print(error_details)
         
         # Определяем тип ошибки и возвращаем понятное сообщение
         error_message = str(e).lower()
