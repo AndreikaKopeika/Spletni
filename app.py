@@ -1520,12 +1520,30 @@ def enhance_gossip_ai(gossip_id):
 
 Верни только улучшенный текст в формате Markdown, без дополнительных пояснений."""
 
+        # Проверяем доступность OpenAI API
+        if not client:
+            print(f"[AI-ENHANCE-ERROR] OpenAI клиент не инициализирован")
+            return jsonify({'status': 'error', 'message': 'OpenAI API не настроен. Обратитесь к администратору.'}), 500
+        
+        # Проверяем DNS-резолвинг
+        try:
+            import socket
+            socket.gethostbyname('api.openai.com')
+            print(f"[AI-ENHANCE] DNS-резолвинг успешен")
+        except Exception as dns_error:
+            print(f"[AI-ENHANCE-ERROR] Проблема с DNS-резолвингом: {dns_error}")
+            return jsonify({'status': 'error', 'message': 'Проблема с сетевым подключением. Проверьте DNS и интернет-соединение.'}), 408
+        
         # Используем существующий API для улучшения сплетни
         print(f"[AI-ENHANCE] Отправляем запрос к OpenAI API для улучшения сплетни {gossip.id}")
-        response = client.responses.create(
-            model="gpt-4o-mini",
-            input=prompt
-        )
+        try:
+            response = client.responses.create(
+                model="gpt-4o-mini",
+                input=prompt
+            )
+        except Exception as api_error:
+            print(f"[AI-ENHANCE-ERROR] Ошибка при вызове OpenAI API: {type(api_error).__name__}: {str(api_error)}")
+            raise api_error
         
         enhanced_content = response.output_text.strip()
         print(f"[AI-ENHANCE] Получен ответ от OpenAI API, длина: {len(enhanced_content)} символов")
@@ -1594,8 +1612,9 @@ def enhance_gossip_ai(gossip_id):
             except:
                 return jsonify({'status': 'error', 'message': 'База данных заблокирована. Попробуйте позже.'}), 503
         
-        elif "timeout" in error_message or "connection" in error_message:
-            return jsonify({'status': 'error', 'message': 'Превышено время ожидания ответа от AI. Попробуйте еще раз.'}), 408
+        elif "timeout" in error_message or "connection" in error_message or "lookup timed out" in error_message:
+            print(f"[AI-ENHANCE-ERROR] Проблема с сетевым подключением к OpenAI API")
+            return jsonify({'status': 'error', 'message': 'Проблема с подключением к AI сервису. Проверьте интернет-соединение и попробуйте еще раз.'}), 408
         
         elif "authentication" in error_message or "invalid api key" in error_message:
             return jsonify({'status': 'error', 'message': 'Ошибка аутентификации OpenAI API. Обратитесь к администратору.'}), 401
