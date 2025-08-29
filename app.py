@@ -65,13 +65,20 @@ if not SECRET_KEY:
     raise ValueError("Нет SECRET_KEY в .env файле. Пожалуйста, создайте .env файл и установите в нем SECRET_KEY.")
 
 app.config['SECRET_KEY'] = SECRET_KEY # Теперь берется из .env
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/gossip.db?timeout=30&check_same_thread=False')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/gossip.db')
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,
     'pool_recycle': 300,
-    'pool_timeout': 30
+    'pool_timeout': 30,
+    'connect_args': {
+        'timeout': 60,
+        'check_same_thread': False,
+        'isolation_level': None
+    }
 }
 db = SQLAlchemy(app)
+# Отключаем autoflush для избежания блокировок
+db.session.autoflush = False
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -1389,10 +1396,11 @@ def claim_quest(user_quest_id):
 @app.route("/gossip/<int:gossip_id>")
 def gossip(gossip_id):
     # Оптимизация: загружаем автора сплетни и авторов комментариев одним запросом
-    gossip = Gossip.query.options(
-        joinedload(Gossip.author),
-        joinedload(Gossip.comments).joinedload(Comment.author)
-    ).get_or_404(gossip_id)
+    with db.session.no_autoflush:
+        gossip = Gossip.query.options(
+            joinedload(Gossip.author),
+            joinedload(Gossip.comments).joinedload(Comment.author)
+        ).get_or_404(gossip_id)
     
     # Сортировка комментариев по количеству лайков
     sorted_comments = sorted(gossip.comments, key=lambda c: len(c.likes), reverse=True)
@@ -1556,6 +1564,15 @@ def enhance_gossip_ai(gossip_id):
         
     except Exception as e:
         db.session.rollback()
+        # Если база заблокирована, попробуем еще раз через небольшую задержку
+        if "database is locked" in str(e):
+            import time
+            time.sleep(1)
+            try:
+                db.session.commit()
+                return jsonify({'status': 'error', 'message': 'База данных временно недоступна. Попробуйте еще раз через несколько секунд.'}), 503
+            except:
+                return jsonify({'status': 'error', 'message': 'База данных заблокирована. Попробуйте позже.'}), 503
         return jsonify({'status': 'error', 'message': f'Ошибка при улучшении сплетни: {str(e)}'}), 500
 
 @app.route("/gossip/<int:gossip_id>/comment", methods=['POST'])
