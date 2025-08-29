@@ -65,7 +65,12 @@ if not SECRET_KEY:
     raise ValueError("Нет SECRET_KEY в .env файле. Пожалуйста, создайте .env файл и установите в нем SECRET_KEY.")
 
 app.config['SECRET_KEY'] = SECRET_KEY # Теперь берется из .env
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/gossip.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/gossip.db?timeout=30&check_same_thread=False')
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'pool_timeout': 30
+}
 db = SQLAlchemy(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager()
@@ -1532,6 +1537,10 @@ def enhance_gossip_ai(gossip_id):
         # Создаем транзакцию для отслеживания (без получателя, так как это системная операция)
         # Просто списываем коины без создания транзакции, так как это внутренняя операция
         db.session.commit()
+        
+        # Небольшая задержка для избежания блокировки базы данных
+        import time
+        time.sleep(0.5)
         
         # Конвертируем Markdown в HTML для отображения
         raw_html = markdown(enhanced_content, extensions=['fenced_code', 'tables'])
