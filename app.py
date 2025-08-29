@@ -29,6 +29,13 @@ import shutil
 
 load_dotenv() # Загружаем переменные из .env
 
+# --- Глобальные настройки ботов ---
+BOT_SETTINGS = {
+    'ai_content_chance': 0.7,  # 70% шанс создания AI контента
+    'activity_multiplier': 1.0,  # Множитель активности (1.0 = нормальная скорость)
+    'base_interval_minutes': 60  # Базовый интервал в минутах (было 30-80, теперь 60)
+}
+
 app = Flask(__name__)
 
 # --- Конфигурация для загрузки файлов ---
@@ -502,6 +509,7 @@ class User(db.Model, UserMixin):
     votes_received = db.relationship('ReputationLog', foreign_keys='ReputationLog.target_id', back_populates='target', cascade="all, delete-orphan")
     sent_transactions = db.relationship('CoinTransaction', foreign_keys='CoinTransaction.sender_id', back_populates='sender', cascade="all, delete-orphan")
     received_transactions = db.relationship('CoinTransaction', foreign_keys='CoinTransaction.recipient_id', back_populates='recipient', cascade="all, delete-orphan")
+    moderator_ratings = db.relationship('ModeratorRating', foreign_keys='ModeratorRating.moderator_id', back_populates='moderator', cascade="all, delete-orphan")
 
     # Явные отношения к закреплённой сплетне и активному украшению
     pinned_gossip = db.relationship('Gossip', foreign_keys=[pinned_gossip_id])
@@ -713,6 +721,7 @@ class Gossip(db.Model):
     author = db.relationship('User', back_populates='gossips', foreign_keys=[user_id])
     comments = db.relationship('Comment', back_populates='gossip', cascade="all, delete-orphan")
     likes = db.relationship('Like', back_populates='gossip', cascade="all, delete-orphan")
+    moderator_ratings = db.relationship('ModeratorRating', back_populates='gossip', cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"Gossip('{self.title}', '{self.date_posted}')"
@@ -791,6 +800,21 @@ class CoinTransaction(db.Model):
 
     def __repr__(self):
         return f"CoinTransaction from {self.sender.username} to {self.recipient.username} for {self.amount}"
+
+# Новая модель для оценок сплетен модераторами
+class ModeratorRating(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    moderator_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    gossip_id = db.Column(db.Integer, db.ForeignKey('gossip.id'), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)  # Оценка от 1 до 10
+    comment = db.Column(db.Text, nullable=True)  # Пояснение к оценке
+    rated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    moderator = db.relationship('User', foreign_keys=[moderator_id], back_populates='moderator_ratings')
+    gossip = db.relationship('Gossip', back_populates='moderator_ratings')
+
+    def __repr__(self):
+        return f"ModeratorRating({self.rating}/10 by {self.moderator.username})"
 
 
 @login_manager.user_loader
@@ -1466,12 +1490,19 @@ def update_gossip(gossip_id):
 @login_required
 def delete_gossip(gossip_id):
     gossip = Gossip.query.get_or_404(gossip_id)
-    if gossip.user_id != current_user.id:
+    # Модераторы могут удалять любые сплетни, обычные пользователи - только свои
+    if gossip.user_id != current_user.id and not current_user.is_moderator:
         flash('У вас нет прав для этого действия', 'danger')
         return redirect(url_for('gossip', gossip_id=gossip.id))
+    
     db.session.delete(gossip)
     db.session.commit()
-    flash('Ваша сплетня была удалена!', 'success')
+    
+    if current_user.is_moderator and gossip.user_id != current_user.id:
+        flash(f'Сплетня "{gossip.title}" была удалена модератором!', 'warning')
+    else:
+        flash('Ваша сплетня была удалена!', 'success')
+    
     return redirect(url_for('home'))
 
 @app.route("/gossip/<int:gossip_id>/enhance_ai", methods=['POST'])
@@ -1700,6 +1731,72 @@ def delete_comment(comment_id):
     flash('Комментарий был удален!', 'success')
     return redirect(url_for('gossip', gossip_id=comment.gossip_id))
 
+# --- МАРШРУТЫ ДЛЯ ОЦЕНКИ СПЛЕТЕН МОДЕРАТОРАМИ ---
+
+@app.route('/gossip/<int:gossip_id>/rate', methods=['GET', 'POST'])
+@login_required
+def rate_gossip(gossip_id):
+    """Страница для оценки сплетни модератором"""
+    if not current_user.is_moderator:
+        flash('Только модераторы могут оценивать сплетни', 'danger')
+        return redirect(url_for('gossip', gossip_id=gossip_id))
+    
+    gossip = Gossip.query.get_or_404(gossip_id)
+    
+    # Проверяем, не оценивал ли уже этот модератор данную сплетню
+    existing_rating = ModeratorRating.query.filter_by(
+        moderator_id=current_user.id,
+        gossip_id=gossip_id
+    ).first()
+    
+    if request.method == 'POST':
+        form = NoCsrfForm()
+        if form.validate_on_submit():
+            rating = int(request.form.get('rating', 0))
+            comment = request.form.get('comment', '').strip()
+            
+            # Валидация оценки
+            if not (1 <= rating <= 10):
+                flash('Оценка должна быть от 1 до 10', 'danger')
+                return render_template('rate_gossip.html', gossip=gossip, existing_rating=existing_rating, form=form)
+            
+            if existing_rating:
+                # Обновляем существующую оценку
+                existing_rating.rating = rating
+                existing_rating.comment = comment
+                existing_rating.rated_at = datetime.utcnow()
+                flash('Ваша оценка была обновлена!', 'success')
+            else:
+                # Создаем новую оценку
+                new_rating = ModeratorRating(
+                    moderator_id=current_user.id,
+                    gossip_id=gossip_id,
+                    rating=rating,
+                    comment=comment
+                )
+                db.session.add(new_rating)
+                flash('Спасибо за вашу оценку!', 'success')
+            
+            db.session.commit()
+            return redirect(url_for('gossip', gossip_id=gossip_id))
+    
+    form = NoCsrfForm()
+    return render_template('rate_gossip.html', gossip=gossip, existing_rating=existing_rating, form=form)
+
+@app.route('/gossip/<int:gossip_id>/ratings')
+def view_gossip_ratings(gossip_id):
+    """Просмотр всех оценок сплетни"""
+    gossip = Gossip.query.get_or_404(gossip_id)
+    ratings = ModeratorRating.query.filter_by(gossip_id=gossip_id).order_by(ModeratorRating.rated_at.desc()).all()
+    
+    # Вычисляем среднюю оценку
+    if ratings:
+        avg_rating = sum(r.rating for r in ratings) / len(ratings)
+    else:
+        avg_rating = 0
+    
+    return render_template('gossip_ratings.html', gossip=gossip, ratings=ratings, avg_rating=avg_rating)
+
 DEVELOPER_PASSWORD = os.environ.get('DEVELOPER_PASSWORD') # Теперь берется из .env
 
 @app.route("/developer_login", methods=['GET', 'POST'])
@@ -1900,7 +1997,8 @@ def developer_panel():
                            time_interval=time_interval,
                            scroll_to=scroll_to,
                            form=form,
-                           backups=backups)
+                           backups=backups,
+                           bot_settings=BOT_SETTINGS)
 
 
 @app.route('/developer/refresh_quests', methods=['POST'])
@@ -1971,6 +2069,45 @@ def restart_server():
     socketio.start_background_task(target=restart_app)
     return redirect(url_for('developer_panel', scroll_to='server-section'))
 
+
+@app.route("/developer_panel/bot_settings", methods=['POST'])
+@login_required
+def update_bot_settings():
+    if not session.get('developer_logged_in'):
+        flash('Недостаточно прав', 'danger')
+        return redirect(url_for('home'))
+    
+    try:
+        # Получаем новые настройки из формы
+        ai_content_chance = float(request.form.get('ai_content_chance', 0.7))
+        activity_multiplier = float(request.form.get('activity_multiplier', 1.0))
+        base_interval_minutes = int(request.form.get('base_interval_minutes', 60))
+        
+        # Валидация значений
+        if not (0 <= ai_content_chance <= 1):
+            flash('Шанс AI контента должен быть от 0 до 1', 'danger')
+            return redirect(url_for('developer_panel', scroll_to='bot-settings-section'))
+        
+        if not (0.1 <= activity_multiplier <= 10):
+            flash('Множитель активности должен быть от 0.1 до 10', 'danger')
+            return redirect(url_for('developer_panel', scroll_to='bot-settings-section'))
+        
+        if not (1 <= base_interval_minutes <= 1440):  # От 1 минуты до 24 часов
+            flash('Базовый интервал должен быть от 1 до 1440 минут', 'danger')
+            return redirect(url_for('developer_panel', scroll_to='bot-settings-section'))
+        
+        # Обновляем глобальные настройки
+        global BOT_SETTINGS
+        BOT_SETTINGS['ai_content_chance'] = ai_content_chance
+        BOT_SETTINGS['activity_multiplier'] = activity_multiplier
+        BOT_SETTINGS['base_interval_minutes'] = base_interval_minutes
+        
+        flash(f'Настройки ботов обновлены! AI контент: {ai_content_chance*100:.1f}%, Активность: x{activity_multiplier}, Интервал: {base_interval_minutes} мин', 'success')
+        
+    except (ValueError, TypeError) as e:
+        flash(f'Ошибка в данных: {str(e)}', 'danger')
+    
+    return redirect(url_for('developer_panel', scroll_to='bot-settings-section'))
 
 @app.route("/developer_logout")
 def developer_logout():
@@ -3616,8 +3753,8 @@ def trigger_bot_actions(bots_to_activate):
                         print(f"[BOT] {bot.username} прокомментировал(а) сплетню #{target_gossip.id}")
                 
                 elif action == 'gossip':
-                    # 30% шанс создать составную сплетню
-                    if random.random() < 0.3:
+                    # Используем настройку AI контента из BOT_SETTINGS
+                    if random.random() < BOT_SETTINGS['ai_content_chance']:
                         title, content = generate_compound_gossip()
                         content_html = markdown_to_html(content)
                         db.session.add(Gossip(title=title, content=content, content_html=content_html, user_id=bot.id))
@@ -3665,8 +3802,10 @@ def run_bot_activity():
                 ).count()
                 
                 # Адаптивная активность: больше ботов при наличии свежих сплетен
-                # УВЕЛИЧИВАЕМ время ожидания в 10 раз для снижения активности
-                base_sleep = random.randint(1800, 4800)  # Было 180-480, стало 1800-4800 (30-80 минут)
+                # Используем настройки из BOT_SETTINGS
+                base_interval_seconds = BOT_SETTINGS['base_interval_minutes'] * 60
+                activity_multiplier = BOT_SETTINGS['activity_multiplier']
+                base_sleep = int(base_interval_seconds / activity_multiplier)
                 if very_recent_gossips > 0:
                     # Если есть очень свежие сплетни (до 10 минут), уменьшаем время ожидания
                     sleep_duration = max(600, base_sleep // 2)  # Минимум 10 минут (было 1 минута)

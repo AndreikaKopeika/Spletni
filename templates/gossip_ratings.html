@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+
+{% block title %}Оценки сплетни - {{ gossip.title }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="ratings-page">
+        <!-- Заголовок -->
+        <div class="ratings-header">
+            <h1><i class="fas fa-star"></i> Оценки сплетни</h1>
+            <a href="{{ url_for('gossip', gossip_id=gossip.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Назад к сплетне
+            </a>
+        </div>
+
+        <!-- Информация о сплетне -->
+        <div class="gossip-info">
+            <div class="gossip-card">
+                <h2 class="gossip-title">{{ gossip.title }}</h2>
+                <div class="gossip-meta">
+                    <span class="meta-item">
+                        <i class="fas fa-user"></i>
+                        <a href="{{ url_for('profile', username=gossip.author.username) }}">{{ gossip.author.username }}</a>
+                    </span>
+                    <span class="meta-item">
+                        <i class="fas fa-clock"></i>
+                        <time datetime="{{ gossip.date_posted.isoformat() }}Z">{{ gossip.date_posted.strftime('%Y-%m-%d %H:%M') }}</time>
+                    </span>
+                </div>
+                <div class="gossip-content">
+                    {{ gossip.content_html|safe if gossip.content_html else gossip.content|replace('\n', '<br>')|safe }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика оценок -->
+        <div class="ratings-stats">
+            <div class="stats-card">
+                <div class="stat-item">
+                    <div class="stat-number">{{ "%.1f"|format(avg_rating) }}</div>
+                    <div class="stat-label">Средняя оценка</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ ratings|length }}</div>
+                    <div class="stat-label">Всего оценок</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">
+                        {% if ratings %}
+                            {% set max_rating = ratings|map(attribute='rating')|max %}
+                            {{ max_rating }}/10
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="stat-label">Максимальная</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">
+                        {% if ratings %}
+                            {% set min_rating = ratings|map(attribute='rating')|min %}
+                            {{ min_rating }}/10
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="stat-label">Минимальная</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- График распределения оценок -->
+        {% if ratings %}
+        <div class="ratings-chart">
+            <h3><i class="fas fa-chart-bar"></i> Распределение оценок</h3>
+            <div class="chart-container">
+                {% for i in range(1, 11) %}
+                {% set count = ratings|selectattr('rating', 'equalto', i)|list|length %}
+                {% set percentage = (count / ratings|length * 100) if ratings|length > 0 else 0 %}
+                <div class="chart-bar">
+                    <div class="bar-label">{{ i }}</div>
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width: {{ percentage }}%"></div>
+                        <div class="bar-count">{{ count }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Список оценок -->
+        <div class="ratings-list">
+            <h3><i class="fas fa-list"></i> Все оценки модераторов</h3>
+            
+            {% if ratings %}
+                {% for rating in ratings %}
+                <div class="rating-item">
+                    <div class="rating-header">
+                        <div class="moderator-info">
+                            <a href="{{ url_for('profile', username=rating.moderator.username) }}" class="moderator-name">
+                                {{ rating.moderator.username }}
+                            </a>
+                            <span class="moderator-badge">Модератор</span>
+                        </div>
+                        <div class="rating-score">
+                            <span class="score">{{ rating.rating }}/10</span>
+                            <div class="score-stars">
+                                {% for i in range(1, 11) %}
+                                <i class="fas fa-star {% if i <= rating.rating %}filled{% endif %}"></i>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if rating.comment %}
+                    <div class="rating-comment">
+                        <p>{{ rating.comment }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="rating-date">
+                        <i class="fas fa-clock"></i>
+                        {{ rating.rated_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-ratings">
+                    <i class="fas fa-star"></i>
+                    <p>Пока нет оценок от модераторов</p>
+                    {% if current_user.is_authenticated and current_user.is_moderator %}
+                    <a href="{{ url_for('rate_gossip', gossip_id=gossip.id) }}" class="btn btn-primary">
+                        <i class="fas fa-star"></i> Оценить сплетню
+                    </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Кнопка оценки для модераторов -->
+        {% if current_user.is_authenticated and current_user.is_moderator %}
+        <div class="moderator-actions">
+            <a href="{{ url_for('rate_gossip', gossip_id=gossip.id) }}" class="btn btn-primary">
+                <i class="fas fa-star"></i> Оценить сплетню
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.ratings-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 0;
+}
+
+.ratings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--accent-color);
+}
+
+.ratings-header h1 {
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.gossip-info {
+    margin-bottom: 2rem;
+}
+
+.gossip-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+}
+
+.gossip-title {
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+.gossip-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.meta-item a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+.gossip-content {
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.ratings-stats {
+    margin-bottom: 2rem;
+}
+
+.stats-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 2rem;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.ratings-chart {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+
+.ratings-chart h3 {
+    color: var(--text-color);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chart-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.chart-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.bar-label {
+    width: 30px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.bar-container {
+    flex: 1;
+    height: 30px;
+    background: var(--bg-color);
+    border-radius: 15px;
+    position: relative;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-color), #ffd700);
+    border-radius: 15px;
+    transition: width 0.3s ease;
+}
+
+.bar-count {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.ratings-list {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+
+.ratings-list h3 {
+    color: var(--text-color);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rating-item {
+    background: var(--bg-color);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+}
+
+.rating-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.moderator-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.moderator-name {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.moderator-badge {
+    background: var(--accent-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.rating-score {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.score {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent-color);
+}
+
+.score-stars {
+    display: flex;
+    gap: 0.1rem;
+}
+
+.score-stars i {
+    font-size: 0.8rem;
+    color: #ddd;
+}
+
+.score-stars i.filled {
+    color: #ffd700;
+}
+
+.rating-comment {
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    background: var(--card-bg);
+    border-radius: 4px;
+    border-left: 3px solid var(--accent-color);
+}
+
+.rating-comment p {
+    margin: 0;
+    color: var(--text-color);
+    font-style: italic;
+}
+
+.rating-date {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.no-ratings {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+
+.no-ratings i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #ddd;
+}
+
+.no-ratings p {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.moderator-actions {
+    text-align: center;
+    padding: 2rem;
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-color);
+}
+
+@media (max-width: 768px) {
+    .ratings-page {
+        padding: 1rem;
+    }
+    
+    .ratings-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .stats-card {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        padding: 1rem;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+    }
+    
+    .rating-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    
+    .chart-bar {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .bar-container {
+        height: 20px;
+    }
+}
+</style>
+{% endblock %}
