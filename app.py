@@ -1523,10 +1523,9 @@ def enhance_gossip_ai(gossip_id):
         # Вызываем OpenAI API с таймаутом
         import httpx
         
-        # Настраиваем HTTP клиент с таймаутами и повторными попытками
+        # Настраиваем HTTP клиент с таймаутами
         http_client = httpx.Client(
-            timeout=httpx.Timeout(30.0),  # 30 секунд таймаут
-            limits=httpx.Limits(max_retries=3)
+            timeout=httpx.Timeout(30.0)  # 30 секунд таймаут
         )
         
         client = OpenAI(
@@ -1541,8 +1540,7 @@ def enhance_gossip_ai(gossip_id):
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2000,
-            temperature=0.7,
-            timeout=25  # 25 секунд таймаут для запроса
+            temperature=0.7
         )
         
         enhanced_content = response.choices[0].message.content.strip()
