@@ -98,17 +98,61 @@ if app.config.get('TESTING'):
     app.config['RATELIMIT_ENABLED'] = False
 
 # OpenAI API настройки
-app.config['OPENAI_API_KEY'] = os.environ.get('OPENAI_API_KEY')
+# Принудительно загружаем .env файл и перезаписываем переменные окружения
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv(), override=True)  # override=True перезаписывает существующие переменные
+
+# Получаем API ключ ТОЛЬКО из .env файла
+app.config['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
+
+# Функция для установки переменной окружения
+def set_environment_variable(key, value):
+    """Устанавливает переменную окружения в зависимости от ОС"""
+    try:
+        import platform
+        import subprocess
+        
+        if platform.system() == "Windows":
+            # Для Windows используем setx
+            subprocess.run(['setx', key, value], check=True, capture_output=True)
+            print(f"[CONFIG] Установлена переменная окружения {key} в Windows")
+        else:
+            # Для Linux/Mac используем export
+            # Добавляем в ~/.bashrc или ~/.profile
+            home = os.path.expanduser("~")
+            bashrc_path = os.path.join(home, ".bashrc")
+            profile_path = os.path.join(home, ".profile")
+            
+            export_line = f'export {key}="{value}"\n'
+            
+            # Добавляем в .bashrc если он существует
+            if os.path.exists(bashrc_path):
+                with open(bashrc_path, 'a') as f:
+                    f.write(export_line)
+                print(f"[CONFIG] Добавлена переменная {key} в ~/.bashrc")
+            
+            # Также добавляем в .profile
+            with open(profile_path, 'a') as f:
+                f.write(export_line)
+            print(f"[CONFIG] Добавлена переменная {key} в ~/.profile")
+            
+            # Устанавливаем для текущей сессии
+            os.environ[key] = value
+            
+    except Exception as e:
+        print(f"[CONFIG] Ошибка при установке переменной окружения: {e}")
+
+# Проверяем API ключ
 if app.config['OPENAI_API_KEY'] and app.config['OPENAI_API_KEY'] != 'NEW_OPENAI_API_KEY_HERE_REPLACE_THIS':
     try:
         client = OpenAI(api_key=app.config['OPENAI_API_KEY'])
-        print("[CONFIG] OpenAI API настроен")
+        print(f"[CONFIG] OpenAI API настроен: {app.config['OPENAI_API_KEY']}")
     except Exception as e:
         print(f"[CONFIG] Ошибка инициализации OpenAI API: {e}")
         client = None
 else:
     client = None
-    print("[CONFIG] OpenAI API ключ не найден в переменных окружения")
+    print("[CONFIG] OpenAI API ключ не найден в .env файле")
 
 # В продакшене обязательно настройте HTTPS! Используйте Werkzeug's SecureReferrerMixin или аналогичные средства.
 
@@ -651,6 +695,10 @@ class Gossip(db.Model):
     is_pinned_globally = db.Column(db.Boolean, default=False, index=True)
     pin_price = db.Column(db.Integer, default=10)
     pin_expires_at = db.Column(db.DateTime, nullable=True)
+    
+    # Поля для AI улучшения
+    is_ai_enhanced = db.Column(db.Boolean, default=False)
+    ai_enhanced_at = db.Column(db.DateTime, nullable=True)
 
     author = db.relationship('User', back_populates='gossips', foreign_keys=[user_id])
     comments = db.relationship('Comment', back_populates='gossip', cascade="all, delete-orphan")
@@ -1347,6 +1395,7 @@ def gossip(gossip_id):
     comment_form = NoCsrfForm()
     like_form = NoCsrfForm()
     delete_gossip_form = NoCsrfForm() # Добавил недостающую форму
+    enhance_ai_form = NoCsrfForm() # Форма для улучшения AI
     
     # Используем content_html если он есть, иначе конвертируем Markdown
     if gossip.content_html:
@@ -1356,7 +1405,7 @@ def gossip(gossip_id):
         raw_html = markdown(gossip.content, extensions=['fenced_code', 'tables'])
         gossip_content_html = bleach.clean(raw_html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
 
-    return render_template('gossip.html', gossip=gossip, comments=sorted_comments, comment_form=comment_form, like_form=like_form, delete_gossip_form=delete_gossip_form, gossip_content_html=gossip_content_html)
+    return render_template('gossip.html', gossip=gossip, comments=sorted_comments, comment_form=comment_form, like_form=like_form, delete_gossip_form=delete_gossip_form, enhance_ai_form=enhance_ai_form, gossip_content_html=gossip_content_html)
 
 @app.route('/gossip/new', methods=['GET', 'POST'])
 @login_required
@@ -1409,6 +1458,96 @@ def delete_gossip(gossip_id):
     db.session.commit()
     flash('Ваша сплетня была удалена!', 'success')
     return redirect(url_for('home'))
+
+@app.route("/gossip/<int:gossip_id>/enhance_ai", methods=['POST'])
+@login_required
+@limiter.limit("5 per hour")  # Ограничиваем количество запросов
+def enhance_gossip_ai(gossip_id):
+    gossip = Gossip.query.get_or_404(gossip_id)
+    
+    # Проверяем права доступа
+    if gossip.user_id != current_user.id:
+        return jsonify({'status': 'error', 'message': 'У вас нет прав для улучшения этой сплетни'}), 403
+    
+    # Проверяем, не была ли уже улучшена сплетня
+    if gossip.is_ai_enhanced:
+        return jsonify({'status': 'error', 'message': 'Эта сплетня уже была улучшена с помощью AI'}), 400
+    
+    # Проверяем баланс коинов
+    if current_user.gossip_coins < 100:
+        return jsonify({'status': 'error', 'message': 'Недостаточно коинов. Требуется 100 коинов для улучшения'}), 400
+    
+    # Проверяем, что OpenAI API настроен
+    if not app.config.get('OPENAI_API_KEY') or app.config['OPENAI_API_KEY'] == 'NEW_OPENAI_API_KEY_HERE_REPLACE_THIS':
+        return jsonify({'status': 'error', 'message': 'OpenAI API не настроен. Обратитесь к администратору.'}), 500
+    
+    try:
+        # Создаем промпт для улучшения сплетни
+        prompt = f"""Улучши и отформатируй следующую сплетню, используя Markdown:
+
+Заголовок: {gossip.title}
+
+Содержание: {gossip.content}
+
+Правила улучшения:
+1. Сохрани основную суть и смысл сплетни
+2. Улучши стиль написания, сделай текст более читаемым и увлекательным
+3. Добавь подходящие Markdown элементы: заголовки, списки, выделения, цитаты
+4. Структурируй текст для лучшего восприятия
+5. Не добавляй ложную информацию или домыслы
+6. Сохрани оригинальный тон и стиль автора
+7. Используй эмодзи для украшения, но умеренно
+
+Верни только улучшенный текст в формате Markdown, без дополнительных пояснений."""
+
+        # Вызываем OpenAI API
+        client = OpenAI(api_key=app.config['OPENAI_API_KEY'])
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Ты помощник для улучшения текстов сплетен. Твоя задача - улучшить стиль и форматирование, сохранив суть и правдивость."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=2000,
+            temperature=0.7
+        )
+        
+        enhanced_content = response.choices[0].message.content.strip()
+        
+        # Проверяем, что контент не пустой и не слишком длинный
+        if not enhanced_content or len(enhanced_content) > 10000:
+            return jsonify({'status': 'error', 'message': 'Ошибка при улучшении сплетни. Попробуйте еще раз'}), 500
+        
+        # Очищаем HTML теги из улучшенного контента
+        enhanced_content = bleach.clean(enhanced_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
+        
+        # Обновляем сплетню
+        gossip.content = enhanced_content
+        gossip.is_ai_enhanced = True
+        gossip.ai_enhanced_at = datetime.utcnow()
+        
+        # Списываем коины
+        current_user.gossip_coins -= 100
+        
+        # Создаем транзакцию для отслеживания (без получателя, так как это системная операция)
+        # Просто списываем коины без создания транзакции, так как это внутренняя операция
+        db.session.commit()
+        
+        # Конвертируем Markdown в HTML для отображения
+        raw_html = markdown(enhanced_content, extensions=['fenced_code', 'tables'])
+        gossip_content_html = bleach.clean(raw_html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Сплетня успешно улучшена с помощью AI!',
+            'enhanced_content': enhanced_content,
+            'enhanced_content_html': gossip_content_html,
+            'remaining_coins': current_user.gossip_coins
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': f'Ошибка при улучшении сплетни: {str(e)}'}), 500
 
 @app.route("/gossip/<int:gossip_id>/comment", methods=['POST'])
 @login_required

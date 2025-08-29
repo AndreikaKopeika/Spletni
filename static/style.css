@@ -2073,10 +2073,9 @@ a:focus, button:focus, input:focus, textarea:focus {
     
 
     
-    /* Обычная шапка для мобильных (не скрывается) */
+    /* Обычная шапка для мобильных */
     .main-header {
-        position: sticky;
-        top: 0;
+        position: relative;
         width: 100%;
         z-index: 1000;
     }
@@ -2604,10 +2603,7 @@ a:focus, button:focus, input:focus, textarea:focus {
     
     /* Фиксированная шапка для маленьких экранов */
     .main-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        position: relative;
         width: 100%;
         z-index: 1000;
     }
@@ -3145,12 +3141,9 @@ a:focus, button:focus, input:focus, textarea:focus {
         font-size: 0.65em !important;
     }
     
-    /* Фиксированная шапка для очень маленьких экранов */
+    /* Обычная шапка для очень маленьких экранов */
     .main-header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        position: relative;
         width: 100%;
         z-index: 1000;
     }

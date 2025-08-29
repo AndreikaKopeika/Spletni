@@ -269,6 +269,7 @@
                 mobileNavPanel.style.overflow = 'visible';
                 mobileNavPanel.style.marginBottom = '0';
                 mobileNavPanel.style.paddingBottom = '8px';
+                mobileNavPanel.style.display = 'block';
             }
         }
         
@@ -287,6 +288,20 @@
                 ensureMobilePanelVisible();
             }
         });
+        
+        // Принудительная инициализация через небольшую задержку
+        setTimeout(function() {
+            if (window.innerWidth <= 768) {
+                ensureMobilePanelVisible();
+            }
+        }, 100);
+        
+        // Еще одна проверка через секунду
+        setTimeout(function() {
+            if (window.innerWidth <= 768) {
+                ensureMobilePanelVisible();
+            }
+        }, 1000);
         
         // Обработчик изменения размера окна
         window.addEventListener('resize', function() {

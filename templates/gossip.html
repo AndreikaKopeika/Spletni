@@ -54,6 +54,19 @@
                     <button type="submit" class="btn btn-danger" onclick="return confirm('Вы уверены, что хотите удалить эту сплетню?');"><i class="fas fa-trash"></i> Удалить</button>
                 </form>
             {% endif %}
+            
+            {% if current_user.is_authenticated and current_user == gossip.author and not gossip.is_ai_enhanced %}
+                <button type="button" class="btn btn-ai-enhance" id="enhance-ai-btn" onclick="enhanceGossipAI()">
+                    <i class="fas fa-magic"></i> ✨Улучшить с AI✨ (100 коинов)
+                </button>
+            {% endif %}
+            
+            {% if gossip.is_ai_enhanced %}
+                <div class="ai-enhanced-badge">
+                    <i class="fas fa-robot"></i> Улучшено с помощью AI
+                    <small>{{ gossip.ai_enhanced_at.strftime('%Y-%m-%d %H:%M') if gossip.ai_enhanced_at }}</small>
+                </div>
+            {% endif %}
         </div>
     </article>
 
@@ -255,6 +268,165 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => console.error('Error:', error));
         }
     });
+
+    // --- Функция улучшения сплетни с помощью AI ---
+    window.enhanceGossipAI = function() {
+        const enhanceBtn = document.getElementById('enhance-ai-btn');
+        const originalText = enhanceBtn.innerHTML;
+        
+        // Показываем индикатор загрузки
+        enhanceBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Улучшаем...';
+        enhanceBtn.disabled = true;
+        
+        // Получаем CSRF токен
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        
+        fetch(`/gossip/{{ gossip.id }}/enhance_ai`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: `csrf_token=${encodeURIComponent(csrfToken)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Обновляем содержимое сплетни
+                const gossipContent = document.querySelector('.gossip-content-full');
+                gossipContent.innerHTML = data.enhanced_content_html;
+                
+                // Скрываем кнопку улучшения
+                enhanceBtn.style.display = 'none';
+                
+                // Добавляем бейдж об улучшении
+                const actionsDiv = document.querySelector('.gossip-actions');
+                const aiBadge = document.createElement('div');
+                aiBadge.className = 'ai-enhanced-badge';
+                aiBadge.innerHTML = '<i class="fas fa-robot"></i> Улучшено с помощью AI';
+                actionsDiv.appendChild(aiBadge);
+                
+                // Показываем уведомление об успехе
+                showNotification(data.message, 'success');
+                
+                // Обновляем баланс коинов (если есть элемент для отображения)
+                const coinsElement = document.querySelector('.user-coins');
+                if (coinsElement) {
+                    coinsElement.textContent = data.remaining_coins;
+                }
+            } else {
+                showNotification(data.message, 'error');
+                // Восстанавливаем кнопку
+                enhanceBtn.innerHTML = originalText;
+                enhanceBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Произошла ошибка при улучшении сплетни', 'error');
+            // Восстанавливаем кнопку
+            enhanceBtn.innerHTML = originalText;
+            enhanceBtn.disabled = false;
+        });
+    };
+    
+    // Функция для показа уведомлений
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        `;
+        
+        if (type === 'success') {
+            notification.style.backgroundColor = '#28a745';
+        } else if (type === 'error') {
+            notification.style.backgroundColor = '#dc3545';
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Удаляем уведомление через 5 секунд
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
+    }
 });
 </script>
+
+<style>
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.btn-ai-enhance {
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+    background-size: 400% 400%;
+    animation: gradientShift 3s ease infinite;
+    color: white;
+    border: none;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.btn-ai-enhance:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    animation-play-state: paused;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.ai-enhanced-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: 500;
+    box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+}
+
+.ai-enhanced-badge small {
+    opacity: 0.8;
+    font-size: 0.8em;
+}
+</style>
 {% endblock %}
