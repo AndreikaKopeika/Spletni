@@ -803,32 +803,7 @@ form button:active {
     gap: 8px;
 }
 
-/* Кнопка показа шапки */
-.show-header-btn {
-    display: none;
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
-    background-color: var(--accent-primary);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    z-index: 10000;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    transition: all 0.2s ease;
-}
 
-.show-header-btn:hover {
-    background-color: var(--accent-secondary);
-    transform: scale(1.1);
-}
-
-.show-header-btn i {
-    font-size: 1.2em;
-}
 
 /* Мобильная навигационная панель */
 .mobile-nav-panel {
@@ -987,17 +962,7 @@ form button:active {
     padding-bottom: 8px !important;
 }
 
-/* Скрытая шапка */
-.header-hidden {
-    transform: translateY(-100%);
-    transition: transform 0.3s ease;
-}
 
-/* Видимая шапка */
-.header-visible {
-    transform: translateY(0);
-    transition: transform 0.3s ease;
-}
 
 /* Убеждаемся, что панель всегда поверх */
 .mobile-nav-panel * {
@@ -2106,30 +2071,19 @@ a:focus, button:focus, input:focus, textarea:focus {
         display: block;
     }
     
-    /* Показываем кнопку показа шапки */
-    .show-header-btn {
-        display: block;
-    }
+
     
-    /* Фиксированная шапка для мобильных */
+    /* Обычная шапка для мобильных (не скрывается) */
     .main-header {
-        position: fixed;
+        position: sticky;
         top: 0;
-        left: 0;
-        right: 0;
         width: 100%;
         z-index: 1000;
     }
     
     /* Добавляем отступ для контента */
     .main-content {
-        padding-top: 100px;
         padding-bottom: 80px;
-    }
-    
-    /* Увеличиваем отступ для основного контейнера */
-    .container {
-        padding-top: 20px;
     }
     
     /* Основной контент */
@@ -2660,13 +2614,7 @@ a:focus, button:focus, input:focus, textarea:focus {
     
     /* Отступ для контента */
     .main-content {
-        padding-top: 90px;
         padding-bottom: 80px;
-    }
-    
-    /* Увеличиваем отступ для основного контейнера */
-    .container {
-        padding-top: 15px;
     }
     
     /* Мобильная навигационная панель для маленьких экранов */
@@ -3209,13 +3157,7 @@ a:focus, button:focus, input:focus, textarea:focus {
     
     /* Отступ для контента */
     .main-content {
-        padding-top: 80px;
         padding-bottom: 80px;
-    }
-    
-    /* Увеличиваем отступ для основного контейнера */
-    .container {
-        padding-top: 10px;
     }
     
     .header-left {

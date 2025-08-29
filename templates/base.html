@@ -112,10 +112,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Кнопка показа/скрытия шапки (только на мобильных) -->
-    <button class="show-header-btn" id="showHeaderBtn" title="Скрыть шапку">
-        <i class="fas fa-chevron-up"></i>
-    </button>
+
 
     <!-- Мобильная навигационная панель -->
     <nav class="mobile-nav-panel">
@@ -256,113 +253,12 @@
         // Вызываем функцию конвертации после загрузки всего контента
         convertTimestamps();
         
-        // --- Управление скрытием шапки на мобильных ---
-        let lastScrollTop = 0;
-        let headerManuallyHidden = false; // Флаг для ручного скрытия
-        const header = document.querySelector('.main-header');
+        // --- Управление нижней панелью на мобильных ---
         const mobileNavPanel = document.querySelector('.mobile-nav-panel');
-        const scrollThreshold = 20; // Уменьшаем порог для более быстрого скрытия
         
-        function handleScroll() {
-            if (window.innerWidth <= 768) { // Только для мобильных
-                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                
+        function ensureMobilePanelVisible() {
+            if (window.innerWidth <= 768 && mobileNavPanel) {
                 // Убеждаемся, что нижняя панель всегда видна
-                if (mobileNavPanel) {
-                    mobileNavPanel.style.position = 'fixed';
-                    mobileNavPanel.style.bottom = '0';
-                    mobileNavPanel.style.left = '0';
-                    mobileNavPanel.style.right = '0';
-                    mobileNavPanel.style.transform = 'none';
-                    mobileNavPanel.style.top = 'auto';
-                    mobileNavPanel.style.zIndex = '9999';
-                    mobileNavPanel.style.overflow = 'visible';
-                    mobileNavPanel.style.marginBottom = '0';
-                    mobileNavPanel.style.paddingBottom = '8px';
-                }
-                
-                if (scrollTop > lastScrollTop && scrollTop > scrollThreshold && !headerManuallyHidden) {
-                    // Скролл вниз - скрываем шапку (только если не скрыта вручную)
-                    header.classList.remove('header-visible');
-                    header.classList.add('header-hidden');
-                    // Обновляем кнопку
-                    if (showHeaderBtn) {
-                        showHeaderBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                        showHeaderBtn.title = 'Показать шапку';
-                    }
-                } else if (scrollTop < lastScrollTop && !headerManuallyHidden) {
-                    // Скролл вверх - показываем шапку (только если не скрыта вручную)
-                    header.classList.remove('header-hidden');
-                    header.classList.add('header-visible');
-                    // Обновляем кнопку
-                    if (showHeaderBtn) {
-                        showHeaderBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                        showHeaderBtn.title = 'Скрыть шапку';
-                    }
-                } else if (scrollTop <= scrollThreshold && !headerManuallyHidden) {
-                    // В самом верху - показываем шапку (только если не скрыта вручную)
-                    header.classList.remove('header-hidden');
-                    header.classList.add('header-visible');
-                    // Обновляем кнопку
-                    if (showHeaderBtn) {
-                        showHeaderBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                        showHeaderBtn.title = 'Скрыть шапку';
-                    }
-                }
-                
-                lastScrollTop = scrollTop;
-            }
-        }
-        
-        // Добавляем обработчик скролла
-        window.addEventListener('scroll', handleScroll);
-        
-        // Показываем шапку при клике в верхней части экрана
-        document.addEventListener('click', function(e) {
-            if (window.innerWidth <= 768 && e.clientY < 100 && headerManuallyHidden) {
-                header.classList.remove('header-hidden');
-                header.classList.add('header-visible');
-                headerManuallyHidden = false; // Сбрасываем флаг ручного скрытия
-                if (showHeaderBtn) {
-                    showHeaderBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                    showHeaderBtn.title = 'Скрыть шапку';
-                }
-            }
-        });
-        
-        // Кнопка показа/скрытия шапки
-        const showHeaderBtn = document.getElementById('showHeaderBtn');
-        if (showHeaderBtn) {
-            showHeaderBtn.addEventListener('click', function() {
-                if (header.classList.contains('header-hidden')) {
-                    // Если шапка скрыта - показываем её
-                    header.classList.remove('header-hidden');
-                    header.classList.add('header-visible');
-                    headerManuallyHidden = false; // Сбрасываем флаг ручного скрытия
-                    showHeaderBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                    showHeaderBtn.title = 'Скрыть шапку';
-                } else {
-                    // Если шапка видна - скрываем её
-                    header.classList.remove('header-visible');
-                    header.classList.add('header-hidden');
-                    headerManuallyHidden = true; // Устанавливаем флаг ручного скрытия
-                    showHeaderBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-                    showHeaderBtn.title = 'Показать шапку';
-                }
-            });
-        }
-        
-        // Инициализация при загрузке
-        if (window.innerWidth <= 768) {
-            header.classList.add('header-visible');
-            headerManuallyHidden = false; // Сбрасываем флаг при загрузке
-            // Инициализация кнопки
-            if (showHeaderBtn) {
-                showHeaderBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                showHeaderBtn.title = 'Скрыть шапку';
-            }
-            // Инициализация нижней панели
-            if (mobileNavPanel) {
                 mobileNavPanel.style.position = 'fixed';
                 mobileNavPanel.style.bottom = '0';
                 mobileNavPanel.style.left = '0';
@@ -376,31 +272,27 @@
             }
         }
         
+        // Вызываем функцию при скролле
+        window.addEventListener('scroll', ensureMobilePanelVisible);
+        
+        // Инициализация при загрузке
+        if (window.innerWidth <= 768) {
+            // Инициализация нижней панели
+            ensureMobilePanelVisible();
+        }
+        
+        // Дополнительная инициализация после полной загрузки страницы
+        window.addEventListener('load', function() {
+            if (window.innerWidth <= 768) {
+                ensureMobilePanelVisible();
+            }
+        });
+        
         // Обработчик изменения размера окна
         window.addEventListener('resize', function() {
             if (window.innerWidth <= 768) {
-                header.classList.add('header-visible');
-                headerManuallyHidden = false; // Сбрасываем флаг при изменении размера
-                // Инициализация кнопки
-                if (showHeaderBtn) {
-                    showHeaderBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-                    showHeaderBtn.title = 'Скрыть шапку';
-                }
                 // Убеждаемся, что нижняя панель всегда видна
-                if (mobileNavPanel) {
-                    mobileNavPanel.style.position = 'fixed';
-                    mobileNavPanel.style.bottom = '0';
-                    mobileNavPanel.style.left = '0';
-                    mobileNavPanel.style.right = '0';
-                    mobileNavPanel.style.transform = 'none';
-                    mobileNavPanel.style.top = 'auto';
-                    mobileNavPanel.style.zIndex = '9999';
-                    mobileNavPanel.style.overflow = 'visible';
-                    mobileNavPanel.style.marginBottom = '0';
-                    mobileNavPanel.style.paddingBottom = '8px';
-                }
-            } else {
-                header.classList.remove('header-hidden', 'header-visible');
+                ensureMobilePanelVisible();
             }
         });
     });
