@@ -11,13 +11,14 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-NEW_OPENAI_API_KEY_HERE_REPLACE_THIS}
       - DEVELOPER_PASSWORD=${DEVELOPER_PASSWORD:-admin123}
       - DATABASE_URL=sqlite:////app/instance/gossip.db
+      - ENABLE_BACKGROUND_TASKS=true
     volumes:
       - ./instance:/app/instance:rw
       - ./database_backups:/app/database_backups:rw
       - ./bug_reports:/app/bug_reports:rw
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test: ["CMD-SHELL", "(curl -f http://localhost:5000/healthcheck | grep -q '\"status\":\"healthy\"') || (curl -f http://localhost:80/healthcheck | grep -q '\"status\":\"healthy\"') || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

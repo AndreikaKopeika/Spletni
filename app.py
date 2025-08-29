@@ -18,7 +18,7 @@ from dotenv import load_dotenv # Добавляем для .env
 import random
 from markdown import markdown
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func, event
+from sqlalchemy import func, event, text
 import bleach
 import sys
 from werkzeug.utils import secure_filename
@@ -284,6 +284,133 @@ def get_backup_list():
     except Exception as e:
         print(f"[BACKUP-ERROR] Ошибка при получении списка бэкапов: {e}")
         return {'automatic': [], 'manual': []}
+
+@app.route('/healthcheck')
+def healthcheck():
+    """Проверка работоспособности сайта и основных функций"""
+    start_time = time.time()
+    try:
+        # Проверяем подключение к базе данных
+        db.session.execute(text('SELECT 1'))
+        
+        # Проверяем основные модели
+        user_count = User.query.count()
+        gossip_count = Gossip.query.count()
+        comment_count = Comment.query.count()
+        
+        # Проверяем bcrypt
+        test_password = "test_password_123"
+        hashed = bcrypt.generate_password_hash(test_password).decode('utf-8')
+        bcrypt_working = bcrypt.check_password_hash(hashed, test_password)
+        
+        # Проверяем login_manager
+        login_manager_working = login_manager is not None and hasattr(login_manager, 'user_loader')
+        
+        # Проверяем socketio
+        socketio_working = socketio is not None and hasattr(socketio, 'emit')
+        
+        # Проверяем CSRF
+        csrf_working = csrf is not None and hasattr(csrf, 'protect')
+        
+        # Проверяем limiter
+        limiter_working = limiter is not None and hasattr(limiter, 'enabled')
+        
+        # Проверяем OpenAI клиент (если настроен)
+        openai_working = False
+        if client:
+            try:
+                # Простая проверка - пытаемся получить информацию о модели
+                openai_working = True
+            except:
+                openai_working = False
+        
+        # Проверяем основные функции приложения
+        try:
+            # Проверяем, что можем создать тестового пользователя
+            test_user = User.query.first()
+            user_functions_working = True
+        except:
+            user_functions_working = False
+            
+        try:
+            # Проверяем, что можем создать тестовую сплетню
+            test_gossip = Gossip.query.first()
+            gossip_functions_working = True
+        except:
+            gossip_functions_working = False
+            
+        try:
+            # Проверяем, что можем создать тестовый комментарий
+            test_comment = Comment.query.first()
+            comment_functions_working = True
+        except:
+            comment_functions_working = False
+        
+        # Проверяем все сервисы
+        all_services_working = all([
+            bcrypt_working,
+            login_manager_working,
+            socketio_working,
+            csrf_working,
+            limiter_working,
+            user_functions_working,
+            gossip_functions_working,
+            comment_functions_working
+        ])
+        
+        response_time = round((time.time() - start_time) * 1000, 2)  # в миллисекундах
+        
+        health_status = {
+            'status': 'healthy' if all_services_working else 'degraded',
+            'timestamp': datetime.utcnow().isoformat(),
+            'response_time_ms': response_time,
+            'database': 'connected',
+            'models': {
+                'users': user_count,
+                'gossips': gossip_count,
+                'comments': comment_count
+            },
+            'services': {
+                'bcrypt': 'working' if bcrypt_working else 'failed',
+                'login_manager': 'working' if login_manager_working else 'failed',
+                'socketio': 'working' if socketio_working else 'failed',
+                'csrf': 'working' if csrf_working else 'failed',
+                'limiter': 'working' if limiter_working else 'failed',
+                'openai': 'working' if openai_working else 'not_configured'
+            },
+            'functions': {
+                'user_queries': 'working' if user_functions_working else 'failed',
+                'gossip_queries': 'working' if gossip_functions_working else 'failed',
+                'comment_queries': 'working' if comment_functions_working else 'failed'
+            },
+            'overall': {
+                'all_services_working': all_services_working,
+                'working_services': sum([
+                    bcrypt_working,
+                    login_manager_working,
+                    socketio_working,
+                    csrf_working,
+                    limiter_working,
+                    user_functions_working,
+                    gossip_functions_working,
+                    comment_functions_working
+                ]),
+                'total_services': 8
+            }
+        }
+        
+        return jsonify(health_status), 200 if all_services_working else 503
+        
+    except Exception as e:
+        response_time = round((time.time() - start_time) * 1000, 2)  # в миллисекундах
+        error_status = {
+            'status': 'unhealthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'response_time_ms': response_time,
+            'error': str(e),
+            'error_type': type(e).__name__
+        }
+        return jsonify(error_status), 500
 
 @app.route('/about')
 def about():

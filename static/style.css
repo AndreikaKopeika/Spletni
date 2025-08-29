@@ -108,7 +108,7 @@ header {
     background-color: var(--primary-surface);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    padding: 1em 0;
+    padding: 0.5em 0;
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
@@ -230,11 +230,39 @@ header .logo a {
 }
 
 .btn-like.liked .fa-heart {
-    animation: heartbeat 0.5s ease;
+    animation: heartbeat 0.5s ease; /* Возвращаем анимацию сердцебиения */
 }
 
 .btn-like::before {
     display: none; /* Отключаем анимацию блика конкретно для этой кнопки */
+}
+
+/* Отключаем анимацию блика для кнопки лайка сплетни */
+#like-button::before {
+    display: none !important;
+}
+
+/* Отключаем анимацию блика для всех кнопок лайков */
+.btn-like::before,
+#like-button::before {
+    display: none !important;
+}
+
+/* Отключаем только анимацию блика для кнопок лайков */
+.btn-like::before,
+#like-button::before {
+    display: none !important;
+}
+
+/* Отключаем анимацию сердцебиения только когда лайк убран */
+.btn-like:not(.liked) .fa-heart,
+#like-button:not(.liked) .fa-heart {
+    animation: none !important;
+}
+
+/* Добавляем анимацию сердцебиения для кнопки лайка сплетни */
+#like-button.liked .fa-heart {
+    animation: heartbeat 0.5s ease;
 }
 
 .delete-comment-form {
@@ -747,10 +775,12 @@ form button:active {
     z-index: 100;
 }
 
-.header-content {
+/* Десктопная версия шапки */
+.header-desktop {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
 }
 
 .header-left {
@@ -763,6 +793,329 @@ form button:active {
     display: flex;
     align-items: center;
     gap: 20px;
+}
+
+/* Мобильная версия шапки */
+.header-mobile {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+}
+
+/* Кнопка показа шапки */
+.show-header-btn {
+    display: none;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background-color: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    z-index: 10000;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+}
+
+.show-header-btn:hover {
+    background-color: var(--accent-secondary);
+    transform: scale(1.1);
+}
+
+.show-header-btn i {
+    font-size: 1.2em;
+}
+
+/* Мобильная навигационная панель */
+.mobile-nav-panel {
+    display: none;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    background-color: var(--primary-surface);
+    border-top: 1px solid var(--border-color);
+    z-index: 9999 !important;
+    padding: 8px 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow: visible !important;
+    transform: none !important;
+    will-change: auto !important;
+    height: auto !important;
+    min-height: 76px !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 8px !important;
+}
+
+.mobile-nav-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.mobile-nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    min-width: 60px;
+    min-height: 50px;
+    position: relative;
+    text-align: center;
+}
+
+.mobile-nav-link:hover {
+    color: var(--accent-primary);
+    background-color: var(--background-secondary);
+}
+
+.mobile-nav-link i {
+    font-size: 1.2em;
+    margin-bottom: 4px;
+}
+
+.mobile-nav-link .nav-label {
+    font-size: 0.7em;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* Красивая кнопка создания сплетни */
+.create-gossip-btn {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: white !important;
+    border-radius: 16px !important;
+    padding: 12px 16px !important;
+    min-width: 80px !important;
+    min-height: 60px !important;
+    box-shadow: 0 4px 15px rgba(88, 166, 255, 0.4);
+    transform: translateY(-8px);
+    font-weight: 600;
+}
+
+.create-gossip-btn:hover {
+    background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary)) !important;
+    transform: translateY(-10px) scale(1.05);
+    box-shadow: 0 6px 20px rgba(88, 166, 255, 0.6);
+}
+
+.create-gossip-btn i {
+    font-size: 1.4em !important;
+    margin-bottom: 4px !important;
+}
+
+.create-gossip-btn .nav-label {
+    font-size: 0.75em !important;
+    font-weight: 600 !important;
+}
+
+/* Анимация пульсации для кнопки создания сплетни */
+@keyframes pulse-create {
+    0% { 
+        box-shadow: 0 4px 15px rgba(88, 166, 255, 0.4);
+        transform: translateY(-8px);
+    }
+    50% { 
+        box-shadow: 0 4px 25px rgba(88, 166, 255, 0.6);
+        transform: translateY(-10px);
+    }
+    100% { 
+        box-shadow: 0 4px 15px rgba(88, 166, 255, 0.4);
+        transform: translateY(-8px);
+    }
+}
+
+.create-gossip-btn {
+    animation: pulse-create 2s ease-in-out infinite;
+}
+
+.create-gossip-btn:hover {
+    animation: none;
+}
+
+/* Уведомления в мобильной панели */
+.mobile-nav-link .notification-count {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background-color: var(--accent-primary);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.7em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+/* Отступ для основного контента на мобильных */
+.mobile-content-padding {
+    padding-bottom: 80px;
+}
+
+/* Дополнительные стили для фиксированной панели */
+.mobile-nav-panel {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 9999 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    overflow: visible !important;
+    transform: none !important;
+    will-change: auto !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 8px !important;
+}
+
+/* Скрытая шапка */
+.header-hidden {
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+}
+
+/* Видимая шапка */
+.header-visible {
+    transform: translateY(0);
+    transition: transform 0.3s ease;
+}
+
+/* Убеждаемся, что панель всегда поверх */
+.mobile-nav-panel * {
+    z-index: 9999;
+}
+
+/* Предотвращаем любые трансформации панели */
+.mobile-nav-panel,
+.mobile-nav-panel * {
+    transform: none !important;
+    transition: none !important;
+}
+
+/* Исключение для hover эффектов кнопок */
+.mobile-nav-link:hover {
+    transform: scale(1.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+.create-gossip-btn:hover {
+    transform: translateY(-10px) scale(1.05) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Дополнительные гарантии для фиксированной панели */
+@media (max-width: 768px) {
+    .mobile-nav-panel {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        transform: none !important;
+        transition: none !important;
+        will-change: auto !important;
+        height: auto !important;
+        min-height: 76px !important;
+        margin: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 8px 0 !important;
+        padding-bottom: 8px !important;
+        overflow: visible !important;
+    }
+    
+    .mobile-nav-panel * {
+        transform: none !important;
+        transition: none !important;
+    }
+    
+    /* Исключения для hover эффектов */
+    .mobile-nav-link:hover,
+    .create-gossip-btn:hover {
+        transition: all 0.2s ease !important;
+    }
+    
+    /* Дополнительная защита от смещений */
+    body {
+        overflow-x: hidden;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    html {
+        overflow-x: hidden;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .mobile-nav-panel {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        transform: none !important;
+        transition: none !important;
+        will-change: auto !important;
+        height: auto !important;
+        min-height: 76px !important;
+        margin: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 8px 0 !important;
+        padding-bottom: 8px !important;
+        z-index: 9999 !important;
+        overflow: visible !important;
+    }
+}
+
+.mobile-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.mobile-header-bottom {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.mobile-user-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mobile-user-link {
+    color: var(--text-primary);
+    font-size: 1.2em;
+    padding: 4px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.mobile-user-link:hover {
+    color: var(--accent-primary);
+    background-color: var(--background-secondary);
 }
 
 .logo {
@@ -822,7 +1175,7 @@ form button:active {
 }
 
 .dropdown-menu {
-    background-color: var(--background-secondary);
+    background-color: var(--bg-color);
     border: 1px solid var(--border-color);
     position: absolute;
     top: 100%;
@@ -831,6 +1184,7 @@ form button:active {
     display: none; /* Скрыто по умолчанию */
     min-width: 200px;
     border-radius: var(--border-radius);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .dropdown:hover .dropdown-menu {
@@ -1738,62 +2092,284 @@ a:focus, button:focus, input:focus, textarea:focus {
 
 /* Планшеты (768px и меньше) */
 @media (max-width: 768px) {
+    /* Переключение на мобильную шапку */
+    .header-desktop {
+        display: none;
+    }
+    
+    .header-mobile {
+        display: flex;
+    }
+    
+        /* Показываем мобильную навигационную панель */
+    .mobile-nav-panel {
+        display: block;
+    }
+    
+    /* Показываем кнопку показа шапки */
+    .show-header-btn {
+        display: block;
+    }
+    
+    /* Фиксированная шапка для мобильных */
+    .main-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        z-index: 1000;
+    }
+    
+    /* Добавляем отступ для контента */
+    .main-content {
+        padding-top: 100px;
+        padding-bottom: 80px;
+    }
+    
+    /* Увеличиваем отступ для основного контейнера */
+    .container {
+        padding-top: 20px;
+    }
+    
     /* Основной контент */
     main.main-content {
-        margin: 15px auto;
-        padding: 15px;
-        width: 95%;
+        margin: 10px auto;
+        padding: 10px;
+        width: 98%;
     }
     
-    /* Шапка сайта */
+    /* Шапка сайта - компактная версия */
     .header-content {
         flex-direction: column;
-        gap: 10px;
-        padding: 10px 0;
+        gap: 8px;
+        padding: 8px 0;
     }
     
-    .header-left, .header-right {
+    .header-left {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .header-right {
         width: 100%;
         justify-content: center;
     }
     
-    .logo {
-        font-size: 1.4em;
-        text-align: center;
+    /* Мобильная шапка */
+    .mobile-header-top {
+        width: 100%;
+        gap: 8px;
     }
     
-    /* Навигация */
+    .mobile-header-top .logo {
+        font-size: 1.1em;
+        text-align: left;
+        flex-shrink: 0;
+        color: var(--text-primary);
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .mobile-header-top .search-form {
+        width: auto;
+        max-width: 160px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+    
+    .mobile-header-top .search-form input[type="search"] {
+        height: 32px;
+        font-size: 0.8rem;
+        padding: 0 30px 0 10px;
+        border-radius: 16px;
+    }
+    
+    .mobile-header-bottom {
+        width: 100%;
+        justify-content: flex-end;
+        padding: 4px 0;
+    }
+    
+    .mobile-user-section {
+        gap: 8px;
+    }
+    
+    .mobile-user-link {
+        font-size: 1.4em;
+        padding: 6px;
+    }
+    
+    .mobile-user-link i {
+        color: var(--text-primary);
+    }
+    
+    /* Мобильная версия коинов */
+    .mobile-header-bottom .gossip-coins-display {
+        background-color: var(--background-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 6px 12px;
+        font-size: 0.8em;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    
+    .mobile-header-bottom .gossip-coins-display:hover {
+        background-color: var(--accent-primary);
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .mobile-header-bottom .gossip-coins-display .coin-icon {
+        font-size: 0.9em;
+        color: #FFD700;
+    }
+    
+    .logo {
+        font-size: 1.1em;
+        text-align: left;
+        flex-shrink: 0;
+    }
+    
+    /* Поиск - компактный */
+    .search-form {
+        width: auto;
+        max-width: 180px;
+        margin: 0;
+        flex-shrink: 0;
+    }
+    
+    .search-form input[type="search"] {
+        height: 28px;
+        font-size: 0.75rem;
+        padding: 0 30px 0 10px;
+    }
+    
+    /* Навигация - горизонтальная с иконками */
     .nav-links {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: center;
-        gap: 5px;
-        margin: 10px 0;
+        gap: 4px;
+        margin: 0;
+        overflow-x: auto;
+        padding: 0 5px;
     }
     
     .nav-link {
         padding: 8px 10px;
         font-size: 0.85em;
-        min-width: 44px;
-        min-height: 44px;
+        min-width: 48px;
+        min-height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     
     .nav-link i {
-        font-size: 1.2em;
+        font-size: 1.3em;
     }
     
-    /* Поиск */
-    .search-form {
-        width: 100%;
-        max-width: 280px;
-        margin: 10px auto;
+    /* Скрываем кнопки магазина и квестов на мобиле */
+    .nav-link[href*="shop"],
+    .nav-link[href*="quests"] {
+        display: none;
     }
     
-    .search-form input[type="search"] {
-        height: 40px;
-        font-size: 0.9rem;
+    /* Выделяем кнопку создания сплетни */
+    .nav-link[href*="new_gossip"] {
+        background-color: var(--accent-primary);
+        color: white;
+        border-radius: 12px;
+        padding: 12px 16px;
+        min-width: auto;
+        min-height: 56px;
+        font-weight: 700;
+        font-size: 0.9em;
+        box-shadow: 0 4px 12px rgba(88, 166, 255, 0.4);
+        margin: 0 8px;
+        transform: scale(1.1);
+    }
+    
+    .nav-link[href*="new_gossip"] i {
+        font-size: 1.5em;
+        margin-right: 6px;
+    }
+    
+    /* Добавляем текст к кнопке создания сплетни */
+    .nav-link[href*="new_gossip"]::after {
+        content: "Создать";
+        font-size: 0.8em;
+        margin-left: 2px;
+        font-weight: 600;
+    }
+    
+    /* Анимация пульсации для кнопки создания сплетни */
+    @keyframes pulse-glow {
+        0% { box-shadow: 0 4px 12px rgba(88, 166, 255, 0.4); }
+        50% { box-shadow: 0 4px 20px rgba(88, 166, 255, 0.6); }
+        100% { box-shadow: 0 4px 12px rgba(88, 166, 255, 0.4); }
+    }
+    
+    .nav-link[href*="new_gossip"] {
+        animation: pulse-glow 2s ease-in-out infinite;
+    }
+    
+    /* Hover эффект для кнопки создания сплетни */
+    .nav-link[href*="new_gossip"]:hover {
+        background-color: var(--accent-secondary);
+        transform: scale(1.15) translateY(-2px);
+        box-shadow: 0 6px 16px rgba(88, 166, 255, 0.5);
+        animation: none;
+    }
+    
+    /* Скрываем текст в dropdown, оставляем только иконку */
+    .nav-link.dropdown-toggle {
+        font-size: 0;
+        padding: 4px 6px;
+    }
+    
+    .nav-link.dropdown-toggle i {
+        font-size: 0.9em;
+    }
+    
+    /* Компактный display коинов */
+    .gossip-coins-display {
+        padding: 4px 8px;
+        font-size: 0.8em;
+    }
+    
+    .gossip-coins-display span {
+        font-size: 0.8em;
+    }
+    
+    /* Подсказка для мобильных пользователей */
+    .mobile-hint {
+        display: none;
+        background-color: var(--accent-primary);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin: 10px 0;
+        font-size: 0.8em;
+        text-align: center;
+    }
+    
+    .mobile-hint i {
+        margin-right: 5px;
+    }
+    
+    /* Показываем подсказку на мобильных */
+    .mobile-hint {
+        display: block;
     }
     
     /* Карточки сплетен */
@@ -2029,20 +2605,129 @@ a:focus, button:focus, input:focus, textarea:focus {
         line-height: 1.3;
     }
     
-    /* Шапка */
-    .logo {
-        font-size: 1.2em;
-    }
-    
+    /* Шапка - еще более компактная */
     .header-content {
-        gap: 8px;
-        padding: 8px 0;
+        gap: 5px;
+        padding: 5px 0;
     }
     
-    /* Навигация */
+    /* Мобильная шапка для маленьких экранов */
+    .mobile-header-top {
+        gap: 6px;
+    }
+    
+    .mobile-header-top .logo {
+        font-size: 1em;
+    }
+    
+    .mobile-header-top .search-form {
+        max-width: 120px;
+    }
+    
+    .mobile-header-top .search-form input[type="search"] {
+        height: 28px;
+        font-size: 0.7rem;
+        padding: 0 25px 0 8px;
+    }
+    
+    .mobile-header-bottom {
+        padding: 2px 0;
+    }
+    
+    .mobile-user-section {
+        gap: 6px;
+    }
+    
+    .mobile-user-link {
+        font-size: 1.2em;
+        padding: 4px;
+    }
+    
+    .mobile-header-bottom .gossip-coins-display {
+        padding: 4px 8px;
+        font-size: 0.75em;
+    }
+    
+    /* Фиксированная шапка для маленьких экранов */
+    .main-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        z-index: 1000;
+    }
+    
+    /* Отступ для контента */
+    .main-content {
+        padding-top: 90px;
+        padding-bottom: 80px;
+    }
+    
+    /* Увеличиваем отступ для основного контейнера */
+    .container {
+        padding-top: 15px;
+    }
+    
+    /* Мобильная навигационная панель для маленьких экранов */
+    .mobile-nav-container {
+        padding: 0 15px;
+    }
+    
+    .mobile-nav-link {
+        min-width: 50px;
+        min-height: 45px;
+        padding: 6px 8px;
+    }
+    
+    .mobile-nav-link i {
+        font-size: 1.1em;
+        margin-bottom: 3px;
+    }
+    
+    .mobile-nav-link .nav-label {
+        font-size: 0.65em;
+    }
+    
+    .create-gossip-btn {
+        min-width: 70px !important;
+        min-height: 55px !important;
+        padding: 10px 14px !important;
+    }
+    
+    .create-gossip-btn i {
+        font-size: 1.3em !important;
+    }
+    
+    .create-gossip-btn .nav-label {
+        font-size: 0.7em !important;
+    }
+    
+    .header-left {
+        gap: 5px;
+    }
+    
+    .logo {
+        font-size: 1em;
+    }
+    
+    /* Поиск - очень компактный */
+    .search-form {
+        max-width: 120px;
+        margin: 0;
+    }
+    
+    .search-form input[type="search"] {
+        height: 24px;
+        font-size: 0.7rem;
+        padding: 0 25px 0 8px;
+    }
+    
+    /* Навигация - очень компактная */
     .nav-links {
-        gap: 3px;
-        margin: 8px 0;
+        gap: 2px;
+        margin: 0;
+        padding: 0 2px;
     }
     
     .nav-link {
@@ -2053,19 +2738,51 @@ a:focus, button:focus, input:focus, textarea:focus {
     }
     
     .nav-link i {
-        font-size: 1em;
+        font-size: 1.1em;
     }
     
-    /* Поиск */
-    .search-form {
-        max-width: 220px;
-        margin: 8px auto;
+    /* Скрываем кнопки магазина и квестов на мобиле */
+    .nav-link[href*="shop"],
+    .nav-link[href*="quests"] {
+        display: none;
     }
     
-    .search-form input[type="search"] {
-        height: 35px;
-        font-size: 0.8rem;
-        padding: 0 35px 0 15px;
+    /* Выделяем кнопку создания сплетни */
+    .nav-link[href*="new_gossip"] {
+        background-color: var(--accent-primary);
+        color: white;
+        border-radius: 10px;
+        padding: 8px 12px;
+        min-width: auto;
+        min-height: 44px;
+        font-weight: 700;
+        font-size: 0.8em;
+        box-shadow: 0 3px 10px rgba(88, 166, 255, 0.4);
+        margin: 0 6px;
+        transform: scale(1.05);
+    }
+    
+    .nav-link[href*="new_gossip"] i {
+        font-size: 1.3em;
+        margin-right: 4px;
+    }
+    
+    /* Добавляем текст к кнопке создания сплетни */
+    .nav-link[href*="new_gossip"]::after {
+        content: "Создать";
+        font-size: 0.7em;
+        margin-left: 2px;
+        font-weight: 600;
+    }
+    
+    /* Компактный display коинов */
+    .gossip-coins-display {
+        padding: 2px 6px;
+        font-size: 0.7em;
+    }
+    
+    .gossip-coins-display span {
+        font-size: 0.7em;
     }
     
     /* Карточки сплетен */
@@ -2403,43 +3120,184 @@ a:focus, button:focus, input:focus, textarea:focus {
         font-size: 1.1rem;
     }
     
-    /* Шапка */
-    .logo {
-        font-size: 1.1em;
-    }
-    
+    /* Шапка - максимально компактная */
     .header-content {
-        gap: 5px;
-        padding: 5px 0;
+        gap: 3px;
+        padding: 3px 0;
     }
     
-    /* Навигация */
-    .nav-links {
-        gap: 2px;
-        margin: 5px 0;
+    /* Мобильная шапка для очень маленьких экранов */
+    .mobile-header-top {
+        gap: 4px;
     }
     
-    .nav-link {
-        padding: 5px 6px;
-        font-size: 0.7em;
-        min-width: 35px;
-        min-height: 35px;
-    }
-    
-    .nav-link i {
+    .mobile-header-top .logo {
         font-size: 0.9em;
     }
     
-    /* Поиск */
+    .mobile-header-top .search-form {
+        max-width: 100px;
+    }
+    
+    .mobile-header-top .search-form input[type="search"] {
+        height: 24px;
+        font-size: 0.65rem;
+        padding: 0 20px 0 6px;
+    }
+    
+    .mobile-header-bottom {
+        padding: 1px 0;
+    }
+    
+    .mobile-user-section {
+        gap: 4px;
+    }
+    
+    .mobile-user-link {
+        font-size: 1.1em;
+        padding: 3px;
+    }
+    
+    .mobile-header-bottom .gossip-coins-display {
+        padding: 3px 6px;
+        font-size: 0.7em;
+    }
+    
+    /* Мобильная навигационная панель для очень маленьких экранов */
+    .mobile-nav-container {
+        padding: 0 10px;
+    }
+    
+    .mobile-nav-link {
+        min-width: 45px;
+        min-height: 40px;
+        padding: 4px 6px;
+    }
+    
+    .mobile-nav-link i {
+        font-size: 1em;
+        margin-bottom: 2px;
+    }
+    
+    .mobile-nav-link .nav-label {
+        font-size: 0.6em;
+    }
+    
+    .create-gossip-btn {
+        min-width: 65px !important;
+        min-height: 50px !important;
+        padding: 8px 12px !important;
+    }
+    
+    .create-gossip-btn i {
+        font-size: 1.2em !important;
+    }
+    
+    .create-gossip-btn .nav-label {
+        font-size: 0.65em !important;
+    }
+    
+    /* Фиксированная шапка для очень маленьких экранов */
+    .main-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        z-index: 1000;
+    }
+    
+    /* Отступ для контента */
+    .main-content {
+        padding-top: 80px;
+        padding-bottom: 80px;
+    }
+    
+    /* Увеличиваем отступ для основного контейнера */
+    .container {
+        padding-top: 10px;
+    }
+    
+    .header-left {
+        gap: 3px;
+    }
+    
+    .logo {
+        font-size: 0.9em;
+    }
+    
+    /* Поиск - максимально компактный */
     .search-form {
-        max-width: 180px;
-        margin: 5px auto;
+        max-width: 100px;
+        margin: 0;
     }
     
     .search-form input[type="search"] {
-        height: 32px;
-        font-size: 0.75rem;
-        padding: 0 30px 0 12px;
+        height: 20px;
+        font-size: 0.65rem;
+        padding: 0 20px 0 6px;
+    }
+    
+    /* Навигация - максимально компактная */
+    .nav-links {
+        gap: 2px;
+        margin: 0;
+        padding: 0 1px;
+    }
+    
+    .nav-link {
+        padding: 4px 6px;
+        font-size: 0.7em;
+        min-width: 36px;
+        min-height: 36px;
+    }
+    
+    .nav-link i {
+        font-size: 1em;
+    }
+    
+    /* Скрываем кнопки магазина и квестов на мобиле */
+    .nav-link[href*="shop"],
+    .nav-link[href*="quests"] {
+        display: none;
+    }
+    
+    /* Выделяем кнопку создания сплетни */
+    .nav-link[href*="new_gossip"] {
+        background-color: var(--accent-primary);
+        color: white;
+        border-radius: 8px;
+        padding: 6px 10px;
+        min-width: auto;
+        min-height: 36px;
+        font-weight: 700;
+        font-size: 0.75em;
+        box-shadow: 0 2px 8px rgba(88, 166, 255, 0.4);
+        margin: 0 4px;
+        transform: scale(1.02);
+    }
+    
+    .nav-link[href*="new_gossip"] i {
+        font-size: 1.1em;
+        margin-right: 3px;
+    }
+    
+    /* Добавляем текст к кнопке создания сплетни */
+    .nav-link[href*="new_gossip"]::after {
+        content: "Создать";
+        font-size: 0.65em;
+        margin-left: 1px;
+        font-weight: 600;
+    }
+    
+    /* Компактный display коинов */
+    .gossip-coins-display {
+        padding: 1px 4px;
+        font-size: 0.65em;
+    }
+    
+    .gossip-coins-display span {
+        font-size: 0.65em;
     }
     
     /* Карточки сплетен */
@@ -2740,19 +3598,25 @@ a:focus, button:focus, input:focus, textarea:focus {
 @media (max-width: 768px) and (orientation: landscape) {
     .header-content {
         flex-direction: row;
-        gap: 10px;
+        gap: 5px;
+        padding: 3px 0;
     }
     
     .nav-links {
         flex-direction: row;
         flex-wrap: nowrap;
         overflow-x: auto;
-        padding-bottom: 5px;
+        padding-bottom: 2px;
+        gap: 2px;
     }
     
     .nav-link {
         white-space: nowrap;
         flex-shrink: 0;
+        padding: 4px 6px;
+        font-size: 0.75em;
+        min-width: 32px;
+        min-height: 32px;
     }
 }
 
@@ -2773,18 +3637,10 @@ a:focus, button:focus, input:focus, textarea:focus {
         transform: translateY(-2px);
     }
     
-    /* Увеличиваем размеры для touch */
-    .btn {
+    /* Увеличиваем размеры для touch, но не для шапки */
+    .btn:not(.nav-link) {
         min-height: 44px;
         min-width: 44px;
-    }
-    
-    .nav-link {
-        min-height: 44px;
-        min-width: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
     
     .search-form input[type="search"] {
