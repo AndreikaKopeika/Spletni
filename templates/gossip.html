@@ -94,7 +94,7 @@
                             <i class="fas fa-star {% if i <= avg_rating %}filled{% endif %}"></i>
                             {% endfor %}
                         </div>
-                        <span class="rating-count-text">{{ gossip.moderator_ratings|length }} оценок модераторов</span>
+                                                 <span class="rating-count-text">{{ gossip.moderator_ratings|length }} {{ 'оценка' if gossip.moderator_ratings|length == 1 else 'оценки' if gossip.moderator_ratings|length in [2, 3, 4] else 'оценок' }} модераторов</span>
                     </div>
                 </div>
             {% endif %}
