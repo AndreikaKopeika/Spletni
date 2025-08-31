@@ -66,6 +66,7 @@ docs/
 # Tests
 tests/
 test_*
+!test_database_update.py
 
 # Development
 .env
