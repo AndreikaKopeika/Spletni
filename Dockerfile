@@ -27,6 +27,12 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 # Устанавливаем правильные права на директории
 RUN chmod -R 755 /app/instance /app/database_backups /app/bug_reports
 
+# Делаем скрипты исполняемыми
+RUN chmod +x start_app.sh
+RUN chmod +x update_database.py
+RUN chmod +x test_database_update.py
+RUN chmod +x build_and_test_docker.sh
+
 # Переключаемся на пользователя приложения
 USER appuser
 
@@ -37,12 +43,6 @@ EXPOSE 5000
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
-
-# Делаем скрипты исполняемыми
-RUN chmod +x start_app.sh
-RUN chmod +x update_database.py
-RUN chmod +x test_database_update.py
-RUN chmod +x build_and_test_docker.sh
 
 # Запускаем приложение с фоновыми задачами
 CMD ["./start_app.sh"]
