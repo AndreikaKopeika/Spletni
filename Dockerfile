@@ -38,8 +38,11 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Делаем скрипт исполняемым
+# Делаем скрипты исполняемыми
 RUN chmod +x start_app.sh
+RUN chmod +x update_database.py
+RUN chmod +x test_database_update.py
+RUN chmod +x build_and_test_docker.sh
 
 # Запускаем приложение с фоновыми задачами
 CMD ["./start_app.sh"]

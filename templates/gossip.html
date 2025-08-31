@@ -56,9 +56,21 @@
             {% endif %}
             
             {% if current_user.is_authenticated and current_user == gossip.author and not gossip.is_ai_enhanced %}
-                <button type="button" class="btn btn-ai-enhance" id="enhance-ai-btn" onclick="enhanceGossipAI()">
-                    <i class="fas fa-magic"></i> ✨Улучшить с AI✨ (100 коинов)
-                </button>
+                <div class="ai-enhance-container">
+                    {% if not current_user.has_used_free_enhancement %}
+                        <div class="free-enhancement-banner">
+                            <i class="fas fa-gift"></i>
+                            <span>🎁 Ваше первое улучшение БЕСПЛАТНО! 🎁</span>
+                        </div>
+                    {% endif %}
+                    <a href="{{ url_for('enhance_ai_page', gossip_id=gossip.id) }}" 
+                       class="btn btn-ai-enhance {% if not current_user.has_used_free_enhancement %}free-enhancement-btn{% endif %}">
+                        <i class="fas fa-magic"></i> ✨Улучшить с AI✨
+                        {% if not current_user.has_used_free_enhancement %}
+                            <span class="free-badge">БЕСПЛАТНО</span>
+                        {% endif %}
+                    </a>
+                </div>
             {% endif %}
             
             {% if gossip.is_ai_enhanced %}
@@ -406,6 +418,19 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
+/* CSS Variables for Dark Theme */
+:root {
+    --bg-color: #0d1117;
+    --card-bg: rgba(22, 27, 34, 0.75);
+    --text-color: #c9d1d9;
+    --text-muted: #8b949e;
+    --border-color: rgba(139, 148, 158, 0.2);
+    --accent-color: #58a6ff;
+    --accent-secondary: #9370db;
+    --accent-gradient: linear-gradient(120deg, #58a6ff, #9370db);
+    --success-color: #2ea043;
+}
+
 @keyframes slideIn {
     from {
         transform: translateX(100%);
@@ -428,6 +453,34 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
+/* Стили для контейнера улучшения с AI */
+.ai-enhance-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.free-enhancement-banner {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: bannerPulse 2s infinite;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+@keyframes bannerPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
 .btn-ai-enhance {
     background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
     background-size: 400% 400%;
@@ -438,12 +491,68 @@ document.addEventListener('DOMContentLoaded', function() {
     text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .btn-ai-enhance:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(0,0,0,0.3);
     animation-play-state: paused;
+}
+
+/* Стили для бесплатного улучшения */
+.free-enhancement-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    animation: freeEnhancementPulse 1.5s infinite;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+}
+
+@keyframes freeEnhancementPulse {
+    0% { 
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+    }
+    50% { 
+        transform: scale(1.05);
+        box-shadow: 0 6px 25px rgba(40, 167, 69, 0.6);
+    }
+    100% { 
+        transform: scale(1);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+    }
+}
+
+.free-enhancement-btn:hover {
+    animation: none;
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px rgba(40, 167, 69, 0.7);
+}
+
+.free-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 0.5rem;
+    animation: badgeGlow 2s infinite;
+}
+
+@keyframes badgeGlow {
+    0% { 
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
+    50% { 
+        background: rgba(255, 255, 255, 0.3);
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+    }
+    100% { 
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
 }
 
 @keyframes gradientShift {
@@ -576,6 +685,198 @@ document.addEventListener('DOMContentLoaded', function() {
     
     .rating-stars i {
         font-size: 1rem;
+    }
+}
+
+/* Стили для красивого отображения Markdown в контенте сплетни */
+.gossip-content-full {
+    line-height: 1.8;
+    color: var(--text-color);
+    font-size: 1rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Заголовки */
+.gossip-content-full h1,
+.gossip-content-full h2,
+.gossip-content-full h3,
+.gossip-content-full h4,
+.gossip-content-full h5,
+.gossip-content-full h6 {
+    color: var(--accent-color);
+    margin: 20px 0 15px 0;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.gossip-content-full h1 {
+    font-size: 1.8rem;
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 8px;
+}
+
+.gossip-content-full h2 {
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 6px;
+}
+
+.gossip-content-full h3 {
+    font-size: 1.3rem;
+}
+
+.gossip-content-full h4 {
+    font-size: 1.1rem;
+}
+
+/* Жирный текст */
+.gossip-content-full strong {
+    color: var(--accent-color);
+    font-weight: 700;
+}
+
+/* Курсив */
+.gossip-content-full em {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* Цитаты */
+.gossip-content-full blockquote {
+    margin: 20px 0;
+    padding: 15px 20px;
+    background: rgba(88, 166, 255, 0.1);
+    border-left: 4px solid var(--accent-color);
+    border-radius: 8px;
+    font-style: italic;
+    color: var(--text-color);
+    position: relative;
+}
+
+.gossip-content-full blockquote::before {
+    content: '"';
+    font-size: 3rem;
+    color: var(--accent-color);
+    position: absolute;
+    top: -10px;
+    left: 10px;
+    opacity: 0.3;
+}
+
+/* Списки */
+.gossip-content-full ul,
+.gossip-content-full ol {
+    margin: 15px 0;
+    padding-left: 25px;
+}
+
+.gossip-content-full li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.gossip-content-full ul li {
+    list-style-type: disc;
+    color: var(--text-color);
+}
+
+.gossip-content-full ol li {
+    list-style-type: decimal;
+    color: var(--text-color);
+}
+
+/* Ссылки */
+.gossip-content-full a {
+    color: var(--accent-color);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-bottom-color 0.3s ease;
+}
+
+.gossip-content-full a:hover {
+    border-bottom-color: var(--accent-color);
+}
+
+/* Код */
+.gossip-content-full code {
+    background: rgba(88, 166, 255, 0.1);
+    color: var(--accent-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+/* Блоки кода */
+.gossip-content-full pre {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.gossip-content-full pre code {
+    background: none;
+    padding: 0;
+    color: var(--text-color);
+}
+
+/* Горизонтальные линии */
+.gossip-content-full hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+    margin: 30px 0;
+}
+
+/* Параграфы */
+.gossip-content-full p {
+    margin: 15px 0;
+    line-height: 1.8;
+}
+
+/* Первый параграф */
+.gossip-content-full p:first-child {
+    margin-top: 0;
+}
+
+/* Последний параграф */
+.gossip-content-full p:last-child {
+    margin-bottom: 0;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .gossip-content-full {
+        font-size: 0.95rem;
+        line-height: 1.7;
+    }
+    
+    .gossip-content-full h1 {
+        font-size: 1.5rem;
+    }
+    
+    .gossip-content-full h2 {
+        font-size: 1.3rem;
+    }
+    
+    .gossip-content-full h3 {
+        font-size: 1.1rem;
+    }
+    
+    .gossip-content-full blockquote {
+        padding: 12px 15px;
+        margin: 15px 0;
+    }
+    
+    .gossip-content-full ul,
+    .gossip-content-full ol {
+        padding-left: 20px;
     }
 }
 </style>

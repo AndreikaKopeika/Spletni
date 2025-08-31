@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort # Добавляем jsonify и abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, abort, Response # Добавляем jsonify, abort и Response
+import json
 from openai import OpenAI
 import re
 from flask_sqlalchemy import SQLAlchemy
@@ -497,6 +498,7 @@ class User(db.Model, UserMixin):
     active_decoration_id = db.Column(db.Integer, db.ForeignKey('decoration.id'), nullable=True)
     notify_on_like = db.Column(db.Boolean, default=True)
     notify_on_comment = db.Column(db.Boolean, default=True)
+    has_used_free_enhancement = db.Column(db.Boolean, default=False)  # Для бесплатного первого улучшения
 
     gossips = db.relationship('Gossip', back_populates='author', cascade="all, delete-orphan", foreign_keys='Gossip.user_id')
     comments = db.relationship('Comment', back_populates='author', cascade="all, delete-orphan")
@@ -564,6 +566,26 @@ class UserQuest(db.Model):
     quest = db.relationship('Quest', back_populates='user_quests')
 
 # --- Логика Квестов ---
+
+def update_database_schema():
+    """Обновляет схему базы данных, добавляя новые поля"""
+    try:
+        with app.app_context():
+            # Проверяем, существует ли поле has_used_free_enhancement
+            inspector = db.inspect(db.engine)
+            columns = [col['name'] for col in inspector.get_columns('user')]
+            
+            if 'has_used_free_enhancement' not in columns:
+                print("Добавляем поле has_used_free_enhancement в таблицу user...")
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE user ADD COLUMN has_used_free_enhancement BOOLEAN DEFAULT FALSE"))
+                    conn.commit()
+                print("Поле has_used_free_enhancement успешно добавлено!")
+            else:
+                print("Поле has_used_free_enhancement уже существует")
+                
+    except Exception as e:
+        print(f"Ошибка при обновлении схемы базы данных: {e}")
 
 def assign_daily_quests(user):
     today = date.today()
@@ -876,6 +898,8 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and bcrypt.check_password_hash(user.password, password):
             login_user(user)
+            session['user_id'] = user.id  # Сохраняем ID пользователя в сессии
+            print(f"[LOGIN-DEBUG] Пользователь {user.username} вошел, ID сохранен в сессии: {session.get('user_id')}")
             return redirect(url_for('home'))
         else:
             flash('Войти не удалось. Пожалуйста, проверьте имя пользователя и пароль', 'danger')
@@ -884,6 +908,7 @@ def login():
 @app.route("/logout")
 def logout():
     logout_user()
+    session.pop('user_id', None)  # Очищаем ID пользователя из сессии
     return redirect(url_for('home'))
 
 @app.route("/")
@@ -1604,21 +1629,339 @@ def enhance_gossip_ai(gossip_id):
             except:
                 return jsonify({'status': 'error', 'message': 'База данных заблокирована. Попробуйте позже.'}), 503
         
-        elif "timeout" in error_message or "connection" in error_message or "lookup timed out" in error_message:
-            print(f"[AI-ENHANCE-ERROR] Проблема с сетевым подключением к OpenAI API")
-            return jsonify({'status': 'error', 'message': 'Проблема с подключением к AI сервису. Проверьте интернет-соединение и попробуйте еще раз.'}), 408
-        
-        elif "authentication" in error_message or "invalid api key" in error_message:
-            return jsonify({'status': 'error', 'message': 'Ошибка аутентификации OpenAI API. Обратитесь к администратору.'}), 401
-        
         elif "rate limit" in error_message or "quota" in error_message:
-            return jsonify({'status': 'error', 'message': 'Превышен лимит запросов к AI. Попробуйте позже.'}), 429
+            return jsonify({'status': 'error', 'message': 'Превышен лимит запросов к OpenAI API. Попробуйте позже.'}), 429
         
-        elif "insufficient_quota" in error_message:
-            return jsonify({'status': 'error', 'message': 'Закончились средства на счете OpenAI. Обратитесь к администратору.'}), 402
+        elif "timeout" in error_message or "connection" in error_message:
+            return jsonify({'status': 'error', 'message': 'Ошибка подключения к OpenAI API. Проверьте интернет-соединение.'}), 503
+        
+        elif "invalid api key" in error_message:
+            return jsonify({'status': 'error', 'message': 'Неверный API ключ OpenAI. Обратитесь к администратору.'}), 500
         
         else:
-            return jsonify({'status': 'error', 'message': f'Ошибка при улучшении сплетни: {str(e)}'}), 500
+            return jsonify({'status': 'error', 'message': f'Произошла ошибка при улучшении сплетни: {str(e)}'}), 500
+
+@app.route("/gossip/<int:gossip_id>/enhance_ai_page")
+@login_required
+def enhance_ai_page(gossip_id):
+    """Страница с настройками улучшения сплетни с AI"""
+    gossip = Gossip.query.get_or_404(gossip_id)
+    
+    # Проверяем права доступа
+    if gossip.user_id != current_user.id:
+        flash('У вас нет прав для улучшения этой сплетни', 'error')
+        return redirect(url_for('gossip', gossip_id=gossip_id))
+    
+    # Проверяем, не была ли уже улучшена сплетня
+    if gossip.is_ai_enhanced:
+        flash('Эта сплетня уже была улучшена с помощью AI', 'error')
+        return redirect(url_for('gossip', gossip_id=gossip_id))
+    
+    # Конвертируем контент в HTML для отображения
+    gossip_content_html = markdown_to_html(gossip.content)
+    
+    return render_template('enhance_ai.html', 
+                         gossip=gossip, 
+                         gossip_content_html=gossip_content_html,
+                         user_coins=current_user.gossip_coins)
+
+@app.route("/gossip/<int:gossip_id>/enhance_ai_advanced", methods=['POST'])
+@login_required
+@limiter.limit("10 per hour")
+def enhance_ai_advanced(gossip_id):
+    """Улучшение сплетни с настраиваемыми параметрами"""
+    gossip = Gossip.query.get_or_404(gossip_id)
+    
+    # Проверяем права доступа
+    if gossip.user_id != current_user.id:
+        return jsonify({'status': 'error', 'message': 'У вас нет прав для улучшения этой сплетни'}), 403
+    
+    # Проверяем, не была ли уже улучшена сплетня
+    if gossip.is_ai_enhanced:
+        return jsonify({'status': 'error', 'message': 'Эта сплетня уже была улучшена с помощью AI'}), 400
+    
+    # Получаем параметры из формы
+    data = request.get_json()
+    if not data:
+        return jsonify({'status': 'error', 'message': 'Неверные данные запроса'}), 400
+    
+    # Извлекаем настройки
+    use_markdown = data.get('use_markdown', False)
+    use_anonymity = data.get('use_anonymity', False)
+    add_emojis = data.get('add_emojis', False)
+    creativity_level = data.get('creativity_level', 0.7)
+    style = data.get('style', 'default')
+    
+    # Рассчитываем стоимость с новой системой ценообразования
+    # Повышаем цены на 50%
+    base_cost = 15  # Было 10, стало 15
+    markdown_cost = 15  # Было 10, стало 15
+    anonymity_cost = 15  # Было 10, стало 15
+    emojis_cost = 8  # Было 5, стало 8
+    
+    total_cost = base_cost
+    
+    if use_markdown:
+        total_cost += markdown_cost
+    if use_anonymity:
+        total_cost += anonymity_cost
+    if add_emojis:
+        total_cost += emojis_cost
+    
+    # Применяем скидку 50% (кроме первого бесплатного улучшения)
+    discount_applied = False
+    if not current_user.has_used_free_enhancement:
+        # Первое улучшение бесплатно
+        final_cost = 0
+        discount_applied = True
+    else:
+        # Применяем скидку 50%
+        final_cost = total_cost // 2
+        discount_applied = True
+    
+    # Проверяем баланс коинов
+    if current_user.gossip_coins < final_cost:
+        return jsonify({'status': 'error', 'message': f'Недостаточно коинов. Требуется {final_cost} коинов для улучшения'}), 400
+    
+    # Проверяем, что OpenAI API настроен
+    if not app.config.get('OPENAI_API_KEY') or app.config['OPENAI_API_KEY'] == 'NEW_OPENAI_API_KEY_HERE_REPLACE_THIS':
+        return jsonify({'status': 'error', 'message': 'OpenAI API не настроен. Обратитесь к администратору.'}), 500
+    
+    try:
+        # Списываем коины сразу
+        current_user.gossip_coins -= final_cost
+        
+        # Отмечаем использование бесплатного улучшения
+        if not current_user.has_used_free_enhancement:
+            current_user.has_used_free_enhancement = True
+        
+        db.session.commit()
+        
+        # Сохраняем настройки и стоимость в сессии для стриминга
+        session['enhancement_settings'] = {
+            'use_markdown': use_markdown,
+            'use_anonymity': use_anonymity,
+            'add_emojis': add_emojis,
+            'creativity_level': creativity_level,
+            'style': style
+        }
+        session['enhancement_cost'] = final_cost  # Сохраняем финальную стоимость
+        session['original_cost'] = total_cost  # Сохраняем оригинальную стоимость для отображения
+        session['discount_applied'] = discount_applied  # Сохраняем информацию о скидке
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Начинаем улучшение сплетни...',
+            'stream_url': f'/gossip/{gossip_id}/enhance_ai_stream',
+            'remaining_coins': current_user.gossip_coins,
+            'total_cost': final_cost,
+            'original_cost': total_cost,
+            'discount_applied': discount_applied,
+            'is_free': final_cost == 0
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[AI-ENHANCE-ADVANCED-ERROR] Ошибка: {e}")
+        return jsonify({'status': 'error', 'message': f'Произошла ошибка: {str(e)}'}), 500
+
+@app.route('/gossip/<int:gossip_id>/enhance_ai_stream')
+@login_required
+def enhance_ai_stream(gossip_id):
+    """Стриминг улучшения сплетни в реальном времени"""
+    print(f"[STREAM-DEBUG] Начинаем стриминг для сплетни {gossip_id}")
+    
+    # Получаем ID пользователя из сессии
+    user_id = session.get('user_id')
+    print(f"[STREAM-DEBUG] User ID из сессии: {user_id}")
+    print(f"[STREAM-DEBUG] Все данные сессии: {dict(session)}")
+    print(f"[STREAM-DEBUG] current_user: {current_user}")
+    if current_user.is_authenticated:
+        print(f"[STREAM-DEBUG] current_user.id: {current_user.id}")
+    
+    # Если user_id нет в сессии, но current_user авторизован, используем его ID
+    if not user_id and current_user.is_authenticated:
+        user_id = current_user.id
+        print(f"[STREAM-DEBUG] Используем current_user.id: {user_id}")
+    
+    if not user_id:
+        print("[STREAM-DEBUG] Пользователь не авторизован")
+        return Response(
+            f"data: {json.dumps({'type': 'error', 'message': 'Пользователь не авторизован'})}\n\n",
+            mimetype='text/event-stream'
+        )
+    
+    # Получаем настройки и стоимость из сессии до создания контекста
+    settings = session.get('enhancement_settings', {})
+    total_cost = session.get('enhancement_cost', 10)  # Получаем стоимость из сессии
+    print(f"[STREAM-DEBUG] Настройки из сессии: {settings}")
+    print(f"[STREAM-DEBUG] Стоимость из сессии: {total_cost}")
+    
+    # Сохраняем оригинальный контент в сессии для возможности отмены
+    gossip = Gossip.query.get_or_404(gossip_id)
+    session['original_content'] = gossip.content
+    print(f"[STREAM-DEBUG] Оригинальный контент сохранен в сессии")
+    
+    def generate():
+        print(f"[STREAM-DEBUG] Функция generate() запущена")
+        with app.app_context():
+            try:
+                print(f"[STREAM-DEBUG] Получаем сплетню {gossip_id}")
+                # Получаем сплетню (уже получена выше, но нужно в контексте)
+                gossip = Gossip.query.get_or_404(gossip_id)
+                print(f"[STREAM-DEBUG] Сплетня найдена: {gossip.title}")
+                
+                # Проверяем права доступа
+                if gossip.user_id != user_id:
+                    print(f"[STREAM-DEBUG] Нет прав доступа. Gossip user_id: {gossip.user_id}, current user_id: {user_id}")
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'У вас нет прав для улучшения этой сплетни'})}\n\n"
+                    return
+                
+                print(f"[STREAM-DEBUG] Отправляем начальное сообщение")
+                # Отправляем начальное сообщение
+                yield f"data: {json.dumps({'type': 'start', 'message': 'Начинаем улучшение сплетни...'})}\n\n"
+                
+                print(f"[STREAM-DEBUG] Используем настройки: {settings}")
+                
+                # Подготавливаем промпт
+                prompt = prepare_enhancement_prompt(gossip.content, settings)
+                print(f"[STREAM-DEBUG] Промпт подготовлен, длина: {len(prompt)}")
+                
+                # Создаем клиент OpenAI
+                client = OpenAI(api_key=app.config['OPENAI_API_KEY'])
+                
+                print(f"[STREAM-DEBUG] Отправляем запрос к AI")
+                # Отправляем сообщение о начале запроса к AI
+                yield f"data: {json.dumps({'type': 'ai_start', 'message': 'Отправляем запрос к AI...'})}\n\n"
+                
+                # Создаем стрим
+                stream = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=settings.get('creativity_level', 0.7),
+                    stream=True
+                )
+                
+                print(f"[STREAM-DEBUG] Стрим создан, обрабатываем чанки")
+                # Обрабатываем стрим
+                full_response = ""
+                chunk_count = 0
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        full_response += content
+                        chunk_count += 1
+                        
+                        # Отправляем каждую часть в реальном времени
+                        yield f"data: {json.dumps({'type': 'chunk', 'content': content})}\n\n"
+                
+                print(f"[STREAM-DEBUG] Получено {chunk_count} чанков, сохраняем сплетню")
+                
+                # Сохраняем улучшенную сплетню
+                gossip.content = full_response
+                gossip.is_ai_enhanced = True
+                gossip.ai_enhanced_at = datetime.utcnow()
+                db.session.commit()
+                
+                print(f"[STREAM-DEBUG] Отправляем сообщение о завершении")
+                # Отправляем сообщение об успешном завершении
+                yield f"data: {json.dumps({'type': 'complete', 'message': 'Сплетня успешно улучшена!', 'redirect': f'/gossip/{gossip_id}', 'total_cost': total_cost})}\n\n"
+                
+            except Exception as e:
+                print(f"[STREAM-DEBUG] Ошибка в стриминге: {str(e)}")
+                app.logger.error(f"Ошибка в стриминге: {str(e)}")
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Ошибка: {str(e)}'})}\n\n"
+    
+    print(f"[STREAM-DEBUG] Возвращаем Response с generate()")
+    return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/gossip/<int:gossip_id>/cancel_enhancement', methods=['POST'])
+@login_required
+def cancel_enhancement(gossip_id):
+    """Отмена улучшения сплетни с возвратом 75% средств"""
+    try:
+        # Получаем сплетню
+        gossip = Gossip.query.get_or_404(gossip_id)
+        
+        # Проверяем права доступа
+        if gossip.user_id != current_user.id:
+            return jsonify({'status': 'error', 'message': 'У вас нет прав для отмены улучшения этой сплетни'}), 403
+        
+        # Проверяем, была ли сплетня улучшена
+        if not gossip.is_ai_enhanced:
+            return jsonify({'status': 'error', 'message': 'Эта сплетня не была улучшена'}), 400
+        
+        # Получаем стоимость улучшения из сессии
+        total_cost = session.get('enhancement_cost', 10)
+        original_cost = session.get('original_cost', total_cost)
+        is_free = session.get('is_free', False)
+        
+        # Рассчитываем возврат
+        if is_free:
+            # Если улучшение было бесплатным, возвращаем 0
+            refund_amount = 0
+        else:
+            # Возвращаем 75% от фактически уплаченной суммы
+            refund_amount = int(total_cost * 0.75)
+        
+        # Возвращаем средства
+        current_user.gossip_coins += refund_amount
+        
+        # Восстанавливаем оригинальный контент
+        original_content = session.get('original_content')
+        if original_content:
+            gossip.content = original_content
+        
+        # Отменяем улучшение
+        gossip.is_ai_enhanced = False
+        gossip.ai_enhanced_at = None
+        
+        db.session.commit()
+        
+        # Очищаем данные из сессии
+        session.pop('enhancement_settings', None)
+        session.pop('enhancement_cost', None)
+        session.pop('original_cost', None)
+        session.pop('discount_applied', None)
+        session.pop('is_free', None)
+        session.pop('original_content', None)
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Улучшение отменено. Возвращено {refund_amount} коинов.',
+            'refund_amount': refund_amount
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Ошибка при отмене улучшения: {str(e)}")
+        return jsonify({'status': 'error', 'message': f'Произошла ошибка при отмене улучшения: {str(e)}'}), 500
+
+def prepare_enhancement_prompt(original_content, settings):
+    """Подготавливает промпт для улучшения сплетни"""
+    prompt = f"Улучши следующую сплетню, сделав её более читаемой и увлекательной:\n\n{original_content}\n\n"
+    
+    # Добавляем инструкции в зависимости от настроек
+    if settings.get('style') and settings['style'] != 'default':
+        style_instructions = {
+            'formal': 'Сделай текст более формальным и профессиональным.',
+            'casual': 'Сделай текст более разговорным и дружелюбным.',
+            'dramatic': 'Добавь драматизма и эмоциональности.',
+            'humorous': 'Добавь юмора и забавных моментов.',
+            'mysterious': 'Сделай текст более загадочным и интригующим.'
+        }
+        prompt += f"Стиль: {style_instructions.get(settings['style'], '')}\n"
+    
+    if settings.get('use_markdown'):
+        prompt += "Добавь Markdown форматирование: заголовки, выделения, цитаты.\n"
+    
+    if settings.get('use_anonymity'):
+        prompt += "Сделай текст более анонимным, избегая конкретных имен и деталей.\n"
+    
+    if settings.get('add_emojis'):
+        prompt += "Добавь подходящие эмодзи для украшения текста.\n"
+    
+    prompt += "\nУлучшенная сплетня:"
+    return prompt
 
 @app.route("/test_ai", methods=['GET'])
 def test_ai():
@@ -3565,6 +3908,102 @@ def enhance_gossip_background(gossip_id, user_id):
             print(f"[AI-ENHANCE-BG-ERROR] Ошибка при фоновом улучшении сплетни {gossip_id}: {e}")
             db.session.rollback()
 
+def enhance_gossip_advanced_background(gossip_id, user_id, use_markdown, use_anonymity, add_emojis, creativity_level, style):
+    """Фоновая функция для улучшения сплетни с настраиваемыми параметрами"""
+    with app.app_context():
+        try:
+            print(f"[AI-ENHANCE-ADVANCED-BG] Начинаем улучшение сплетни {gossip_id} с настройками")
+            
+            # Получаем сплетню и пользователя
+            gossip = Gossip.query.get(gossip_id)
+            user = User.query.get(user_id)
+            
+            if not gossip or not user:
+                print(f"[AI-ENHANCE-ADVANCED-BG] Сплетня или пользователь не найдены")
+                return
+            
+            if gossip.user_id != user_id:
+                print(f"[AI-ENHANCE-ADVANCED-BG] Пользователь не является автором сплетни")
+                return
+            
+            if gossip.is_ai_enhanced:
+                print(f"[AI-ENHANCE-ADVANCED-BG] Сплетня уже улучшена")
+                return
+            
+            # Создаем промпт в зависимости от настроек
+            style_instructions = {
+                'default': 'Улучши стиль написания, сделай текст более читаемым и увлекательным',
+                'formal': 'Сделай текст более формальным и профессиональным',
+                'casual': 'Сделай текст более разговорным и дружелюбным',
+                'dramatic': 'Добавь драматизма и эмоциональности',
+                'humorous': 'Добавь юмора и забавных моментов',
+                'mysterious': 'Сделай текст более загадочным и интригующим'
+            }
+            
+            style_instruction = style_instructions.get(style, style_instructions['default'])
+            
+            prompt = f"""Улучши следующую сплетню согласно указанным настройкам:
+
+Заголовок: {gossip.title}
+Содержание: {gossip.content}
+
+Настройки улучшения:
+- Стиль: {style_instruction}
+- Креативность: {creativity_level}
+- Markdown форматирование: {'Да' if use_markdown else 'Нет'}
+- Анонимность: {'Да' if use_anonymity else 'Нет'}
+- Добавить эмодзи: {'Да' if add_emojis else 'Нет'}
+
+Правила:
+1. Сохрани основную суть и смысл сплетни
+2. {style_instruction}
+3. {'Используй Markdown элементы: заголовки, списки, выделения, цитаты' if use_markdown else 'Не используй Markdown'}
+4. {'Сделай текст более анонимным, избегай конкретных имен и деталей' if use_anonymity else 'Сохрани оригинальные детали'}
+5. {'Добавь подходящие эмодзи для украшения' if add_emojis else 'Не добавляй эмодзи'}
+6. Не добавляй ложную информацию
+7. Сохрани оригинальный тон автора
+
+Верни только улучшенный текст, без дополнительных пояснений."""
+
+            # Используем настройки креативности
+            temperature = max(0.7, min(1.0, float(creativity_level)))
+            
+            print(f"[AI-ENHANCE-ADVANCED-BG] Отправляем запрос к OpenAI API с температурой {temperature}")
+            response = client.responses.create(
+                model="gpt-4o-mini",
+                input=prompt,
+                temperature=temperature
+            )
+            
+            enhanced_content = response.output_text.strip()
+            print(f"[AI-ENHANCE-ADVANCED-BG] Получен ответ от OpenAI API, длина: {len(enhanced_content)} символов")
+            
+            # Проверяем, что контент не пустой
+            if not enhanced_content:
+                print(f"[AI-ENHANCE-ADVANCED-BG] Получен пустой ответ от OpenAI API")
+                return
+            
+            if len(enhanced_content) > 10000:
+                print(f"[AI-ENHANCE-ADVANCED-BG] Ответ слишком длинный: {len(enhanced_content)} символов")
+                return
+            
+            # Очищаем HTML теги из улучшенного контента
+            enhanced_content = bleach.clean(enhanced_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES)
+            
+            # Обновляем сплетню
+            gossip.content = enhanced_content
+            gossip.is_ai_enhanced = True
+            gossip.ai_enhanced_at = datetime.utcnow()
+            
+            # Сохраняем изменения
+            db.session.commit()
+            
+            print(f"[AI-ENHANCE-ADVANCED-BG] Сплетня {gossip_id} успешно улучшена пользователем {user.username}")
+            
+        except Exception as e:
+            print(f"[AI-ENHANCE-ADVANCED-BG-ERROR] Ошибка при улучшении сплетни {gossip_id}: {e}")
+            db.session.rollback()
+
 def trigger_bot_actions(bots_to_activate):
     """Умная логика действий для указанного списка ботов."""
     with app.app_context():
@@ -3851,6 +4290,9 @@ if __name__ == '__main__':
         seed_quests()
         seed_decorations()
         # Другие функции для заполнения базы данных, если они есть
+        
+        # Обновляем схему базы данных
+        update_database_schema()
     
     # Запускаем фоновый поток для проверки истечения срока закрепления
     stop_event = threading.Event()
